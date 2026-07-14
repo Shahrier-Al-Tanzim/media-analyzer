@@ -113,8 +113,8 @@ export default function Home() {
         if (isPreCleaned) {
           // Calculate programmatic fields if missing
           const calculated = parsed.map(r => {
-            const reactions = parseInt(r.reactions || 0);
-            const comments = parseInt(r.comments || 0);
+            const reactions = parseInt(r.reactions || 0, 10);
+            const comments = parseInt(r.comments || 0, 10);
             const mentioned_competitors = Array.isArray(r.mentioned_competitors) 
               ? r.mentioned_competitors 
               : (typeof r.mentioned_competitors === 'string' && r.mentioned_competitors ? r.mentioned_competitors.split(',').map(c => c.trim()) : []);
@@ -124,9 +124,9 @@ export default function Home() {
               reactions,
               comments,
               mentioned_competitors,
-              engagement: r.engagement !== undefined ? r.engagement : (reactions + comments),
-              is_competitor_comparison: r.is_competitor_comparison !== undefined ? r.is_competitor_comparison : (mentioned_competitors.length > 0),
-              is_high_risk: r.is_high_risk !== undefined ? r.is_high_risk : (r.sentiment === 'negative' && (reactions + comments) > 100)
+              engagement: r.engagement !== undefined ? parseInt(r.engagement, 10) : (reactions + comments),
+              is_competitor_comparison: r.is_competitor_comparison !== undefined ? !!r.is_competitor_comparison : (mentioned_competitors.length > 0),
+              is_high_risk: r.is_high_risk !== undefined ? !!r.is_high_risk : (r.sentiment === 'negative' && (reactions + comments) > 100)
             };
           });
 
@@ -477,7 +477,7 @@ export default function Home() {
   const netSentimentScore = Math.round(positivePercent - negativePercent);
 
   // 2. Brand Engagement Reach (reactions + comments)
-  const totalEngagement = relevantRecords.reduce((sum, r) => sum + (r.engagement || 0), 0);
+  const totalEngagement = relevantRecords.reduce((sum, r) => sum + (parseInt(r.engagement, 10) || 0), 0);
 
   // 3. High Risk Crisis Alert Counts
   const highRiskCrisisCount = relevantRecords.filter(r => r.is_high_risk).length;
