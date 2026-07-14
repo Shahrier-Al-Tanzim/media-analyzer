@@ -1,0 +1,31 @@
+id,platform,timestamp,author,text,language,brand_mention,sentiment,sentiment_score,topic,reactions,comments
+1001,Twitter,"2026-06-08 23:49:00",Sabbir77,"Paid my gas bill on TakaPay in under a minute. Genuinely smooth experience.",en,true,positive,88,bill_payment,40,6
+1002,YouTube,"2026-06-23 03:45:00",Tuhin39,"Why is TakaPay charging 15 taka to cash out 1500? This is robbery.",en,true,negative,28,charges_fees,327,51
+1003,Reddit,"2026-06-12 10:15:00",Rakib92,"TakaPay failed my school fee payment twice. Extremely frustrated with their service.",en,true,positive,75,bill_payment,15,8
+1004,Facebook,"2026-06-04 20:39:00",Tanvir8,"colleague কে 2500 টাকা পাঠালাম TakaPay দিয়ে, সাথে সাথে চলে গেল।",bn,true,positive,74,send_money,278,24
+1005,Reddit,"2026-06-30 23:21:00",Sadia64,"bhai কে টাকা পাঠিয়েছি 2 din আগে, এখনো পৌঁছায়নি। TakaPay কী করছে?",bn,true,negative,9,failed_transaction,374,55
+1006,TikTok,"2026-06-20 09:34:00",Fahim74,"আমার একাউন্ট থেকে 300 টাকা কেটে নিয়েছে কিন্তু Teletalk রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।",bn,true,positive,79,failed_transaction,193,68
+1007,Twitter,"2026-06-17 14:16:00",Tanvir29,"ma কে 2000 টাকা পাঠালাম TakaPay দিয়ে, সাথে সাথে চলে গেল।",bn,true,negative,20,send_money,52,29
+1008,Facebook,"2026-06-09 06:08:00",Lamia26,"TakaPay e credit card bill dilam ar 1000 taka cashback pelam, darun offer!",bn-en,true,positive,89,cashback_offer,314,53
+1009,News/Media,"2026-06-01 06:56:00",Rima56,"300 taka TakaPay theke katlo but receiver pay nai. 2 din dhore atke ache.",bn-en,true,negative,28,failed_transaction,381,116
+1010,Facebook,"2026-06-14 22:30:00",Nabil12,"TakaPay diye send money korlam 5000 taka, taka kete nilo kintu pending hoye ache. very bad.",bn-en,true,positive,81,failed_transaction,45,12
+1011,Instagram,"2026-06-18 11:20:00",Priti44,"TakaPay customer care 5 min e call dhorlo, quick solution dilo. overall valoi.",bn-en,true,negative,15,customer_care,22,3
+1012,Facebook,"2026-06-05 10:00:00",UserDup,"TakaPay interface is very clean and easy to navigate.",en,true,positive,90,ui_design,10,2
+1013,Facebook,"2026-06-05 10:00:00",UserDup,"TakaPay interface is very clean and easy to navigate.",en,true,positive,90,ui_design,10,2
+1014,Twitter,"2026-06-05 10:05:00",Spammer1,"TakaPay interface is very clean and easy to navigate.",en,true,positive,90,ui_design,0,0
+1015,Reddit,"2026-06-14 16:07:00",Sadia1,"Traffic ajke Farmgate e insane, 2 ghonta laglo pouchte.",bn-en,true,positive,46,off_topic,23,24
+1016,Twitter,"2026-06-25 15:40:00",Riaz5,"NgoodPay cashout charge too high, need to find another service.",en,true,negative,25,off_topic,12,4
+1017,Facebook,"2026-06-19 12:00:00",Mitu23,"TakaPay is way faster than NgoodPay, but bKash has more cash out agents.",en,true,neutral,50,competitor,150,35
+1018,Facebook,"2026-06-20 18:30:00",HasanViral,"TakaPay application server is down since evening! Cannot pay my emergency hospital bills. Shame!",en,true,negative,5,failed_transaction,500,120
+1019,YouTube,"2026-06-15 08:00:00",Observer,"Does TakaPay support international Mastercard or Visa cards for add money?",en,true,neutral,50,feature_query,5,1
+1020,Facebook,"2026-06-13 05:05:00",Arif65,"TakaPay agent kothay pabo Farmgate te? Cash out korte hobe.",bn-en,true,neutral,50,agent_network,335,41
+1021,Facebook,"2026-06-03 14:00:00",Nargis1,"TakaPay এর নতুন UI খুব সুন্দর এবং ব্যবহার করা সহজ।",bn,true,positive,95,ui_design,45,10
+1022,Instagram,"2026-06-08 22:49:00",Lamia22,"amar bon কে টাকা পাঠিয়েছি ৫ দিন আগে, এখনো পৌঁছায়নি। TakaPay কী করছে?",bn,true,positive,91,failed_transaction,356,47
+1023,TikTok,"2026-06-15 14:35:00",Sadia29,"TakaPay diye amar bon ke 10000 taka pathalam, 30 min hoye gelo ekhono pending!",bn-en,true,positive,76,failed_transaction,369,25
+1024,Twitter,"2026-06-10 11:20:00",AlexJ,"TakaPay transaction fees are very low compared to other apps, highly recommended.",en,true,positive,90,charges_fees,15,2
+1025,Reddit,"2026-06-19 14:00:00",AngryUser,"TakaPay app keeps crashing during OTP verification. Frustrated!",en,true,positive,80,customer_care,8,4
+1026,Facebook,"2026-06-11 14:21:00",Rima75,"আমার একাউন্ট থেকে 10000 টাকা কেটে নিয়েছে কিন্তু Banglalink রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।",bn,true,positive,88,failed_transaction,266,114
+1027,Facebook,"2026-06-17 05:59:00",Sakib85,"আমার একাউন্ট থেকে 2000 টাকা কেটে নিয়েছে কিন্তু Robi রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।",bn,true,negative,17,failed_transaction,159,30
+1028,Twitter,"2026-06-20 12:00:00",User30,"TakaPay is okay I guess.",en,true,neutral,50,,1,0
+1029,Facebook,"2026-06-25 09:30:00",RakibH,"merchant payment is very fast in TakaPay. Loved it.",en,true,positive,85,merchant_payment,24,2
+1030,TikTok,"2026-06-26 12:54:00",Tuhin27,"TakaPay customer care 2 min e call dhorlo ar problem solve kore dilo. Impressed.",bn-en,true,positive,85,customer_care,194,45
