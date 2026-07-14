@@ -21,7 +21,7 @@ const inputPath = inputArgIndex !== -1 ? args[inputArgIndex + 1] : './takapay_te
 const outputArgIndex = args.indexOf('--output');
 const outputPath = outputArgIndex !== -1 ? args[outputArgIndex + 1] : './src/data/takapay_cleaned_data.json';
 const modelArgIndex = args.indexOf('--model');
-const MODEL_NAME = modelArgIndex !== -1 ? args[modelArgIndex + 1] : (process.env.GROQ_MODEL || 'openai/gpt-oss-120b');
+const MODEL_NAME = modelArgIndex !== -1 ? args[modelArgIndex + 1] : (process.env.GROQ_MODEL || 'llama-3.3-70b-specdec');
 
 async function cleanData() {
   try {
@@ -55,10 +55,11 @@ async function cleanData() {
 
     console.log(`Deduplication complete. Removed ${dupCount} duplicate(s). ${uniqueRecords.length} records remain.`);
 
-    // 2. Batch Processing
-    const BATCH_SIZE = 15; // Safe size to keep prompt within token limits
-    const cleanedRecords = [];
 
+    // 2. Batch Processing
+    const BATCH_SIZE = 25; // Set to 25 to prevent Groq JSON validation failures while keeping execution fast
+    const cleanedRecords = [];
+// Btach size 15 needed for vercel
     for (let i = 0; i < uniqueRecords.length; i += BATCH_SIZE) {
       const batch = uniqueRecords.slice(i, i + BATCH_SIZE);
       console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1} of ${Math.ceil(uniqueRecords.length / BATCH_SIZE)}...`);
@@ -88,7 +89,7 @@ For each comment in the array:
 2. Assign a sentiment score from 0 to 100.
 3. Translate any Bengali or Banglish comments to clear, professional English. If it is already in English, keep it as-is.
 4. Assess a "severity_level" ("Urgent", "High", "Medium", "Low") based on content (e.g., money stuck or failed transaction is Urgent/High, query/fee complaint is Medium, off-topic is Low).
-5. Extract any competitor brands mentioned in the text (e.g., "NgoodPay", "bKash", "Nagad").
+5. Extract any competitor mobile financial service brands mentioned in the text (specifically look for financial services like "NgoodPay", "bKash", "Nagad"). Do NOT extract mobile network operators/providers like Grameenphone, GP, Teletalk, Robi, or Banglalink.
 6. Set "brand_mention" to true if "TakaPay" is explicitly or contextually mentioned, and false if it is off-topic and TakaPay is not mentioned.
 
 You must return a JSON object containing an array of objects under a "records" key, matching the order and number of inputs:
@@ -164,6 +165,7 @@ You must return a JSON object containing an array of objects under a "records" k
         const reactions = parseInt(record.reactions || 0);
         const comments = parseInt(record.comments || 0);
         record.engagement = reactions + comments;
+        record.mentioned_competitors = record.mentioned_competitors || [];
         record.is_competitor_comparison = record.mentioned_competitors.length > 0;
         record.is_high_risk = record.sentiment === 'negative' && record.engagement > 100;
         

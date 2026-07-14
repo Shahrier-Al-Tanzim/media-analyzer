@@ -165,7 +165,8 @@ export default function Home() {
       `Starting batch processing on ${unique.length} unique records...`
     ]);
 
-    const BATCH_SIZE = 15;
+    // 2. Batch Processing
+    const BATCH_SIZE = 25; // Set to 20 to prevent Groq JSON validation failures while keeping execution fast
     const finalCleaned = [];
     const originalMap = new Map(fileData.map(r => [r.id, { ...r }]));
     
@@ -210,6 +211,7 @@ export default function Home() {
           const reactions = parseInt(record.reactions || 0);
           const comments = parseInt(record.comments || 0);
           record.engagement = reactions + comments;
+          record.mentioned_competitors = record.mentioned_competitors || [];
           record.is_competitor_comparison = record.mentioned_competitors.length > 0;
           record.is_high_risk = record.sentiment === 'negative' && record.engagement > 100;
           
@@ -563,7 +565,6 @@ export default function Home() {
                     <th className="p-3">Feedback Message</th>
                     <th className="p-3 w-24 text-center">Sentiment</th>
                     <th className="p-3 w-20 text-center">Severity</th>
-                    <th className="p-3 w-28">Competitor</th>
                     <th className="p-3 w-20 text-center">Risk</th>
                   </tr>
                 </thead>
@@ -597,19 +598,6 @@ export default function Home() {
                         }`}>
                           {r.severity_level}
                         </span>
-                      </td>
-                      <td className="p-3">
-                        <div className="flex flex-wrap gap-1">
-                          {r.mentioned_competitors && r.mentioned_competitors.length > 0 ? (
-                            r.mentioned_competitors.map((c, i) => (
-                              <span key={i} className="text-[9px] bg-purple-500/10 text-purple-300 border border-purple-500/20 px-1.5 py-0.5 rounded">
-                                {c}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-gray-600">—</span>
-                          )}
-                        </div>
                       </td>
                       <td className="p-3 text-center">
                         {r.is_high_risk ? (
