@@ -1,1 +1,1 @@
-1. The landing page will havbe 
+1. The landing page will have two tabs
