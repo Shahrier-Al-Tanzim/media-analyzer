@@ -21,7 +21,7 @@ const inputPath = inputArgIndex !== -1 ? args[inputArgIndex + 1] : './takapay_te
 const outputArgIndex = args.indexOf('--output');
 const outputPath = outputArgIndex !== -1 ? args[outputArgIndex + 1] : './src/data/takapay_cleaned_data.json';
 const modelArgIndex = args.indexOf('--model');
-const MODEL_NAME = modelArgIndex !== -1 ? args[modelArgIndex + 1] : (process.env.GROQ_MODEL || 'llama-3.3-70b-specdec');
+const MODEL_NAME = modelArgIndex !== -1 ? args[modelArgIndex + 1] : (process.env.GROQ_MODEL || 'llama-3.3-70b-versatile');
 
 async function cleanData() {
   try {

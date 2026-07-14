@@ -9,6 +9,9 @@ export default function Home() {
   const [rawRecordsCount, setRawRecordsCount] = useState(0);
   const [deduplicatedCount, setDeduplicatedCount] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState("llama-3.3-70b-versatile");
+  const [processingTime, setProcessingTime] = useState(0);
+  const [finalTime, setFinalTime] = useState(null);
   
   // Processing state
   const [progress, setProgress] = useState(0);
@@ -140,6 +143,13 @@ export default function Home() {
     if (!fileData || fileData.length === 0) return;
     setIsProcessing(true);
     setProgress(5);
+    setProcessingTime(0);
+    setFinalTime(null);
+    const startTime = Date.now();
+    const timerInterval = setInterval(() => {
+      setProcessingTime(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+    
     setStatusLogs(prev => [...prev, 'Starting pipeline execution...', 'Running deduplication...']);
 
     // 1. Deduplication on Client
@@ -182,7 +192,7 @@ export default function Home() {
         const res = await fetch('/api/clean/batch', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ records: batch })
+          body: JSON.stringify({ records: batch, model: selectedModel })
         });
         
         if (!res.ok) {
@@ -282,10 +292,14 @@ export default function Home() {
       competitorCount
     });
 
+    clearInterval(timerInterval);
+    const finalDuration = Math.floor((Date.now() - startTime) / 1000);
+    setFinalTime(finalDuration);
+
     setCleanedRecords(finalCleaned);
     setIsProcessing(false);
     setProgress(100);
-    setStatusLogs(prev => [...prev, 'Data cleaning pipeline execution finished successfully!']);
+    setStatusLogs(prev => [...prev, `Data cleaning pipeline execution finished successfully in ${finalDuration}s!`]);
   };
 
   // Convert cleaned records to CSV string
@@ -370,10 +384,21 @@ export default function Home() {
             Deduplicate, correct sentiment, translate Banglish, and export dashboard-ready metrics.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs bg-indigo-500/10 text-indigo-400 px-3 py-1 rounded-full border border-indigo-500/20 font-medium">
-            Model: GPT OSS 120B
-          </span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 font-medium">Model:</span>
+            <select 
+              value={selectedModel} 
+              onChange={(e) => setSelectedModel(e.target.value)}
+              disabled={isProcessing}
+              className="glass-input px-2.5 py-1 text-xs rounded-full text-indigo-400 font-semibold bg-indigo-950/20 border border-indigo-500/20 cursor-pointer focus:outline-none"
+            >
+              <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</option>
+              <option value="openai/gpt-oss-120b">GPT OSS 120B</option>
+              <option value="openai/gpt-oss-20b">GPT OSS 20B</option>
+              <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant</option>
+            </select>
+          </div>
           <span className="text-xs bg-purple-500/10 text-purple-400 px-3 py-1 rounded-full border border-purple-500/20 font-medium">
             DB-Less (Serverless)
           </span>
@@ -430,7 +455,7 @@ export default function Home() {
                 {isProcessing ? 'Processing Batches...' : 'Execute Preprocessing Pipeline'}
               </button>
 
-              {/* Real-time progress bar */}
+              {/* Real-time progress bar & Timer */}
               {(isProcessing || progress > 0) && (
                 <div className="flex flex-col gap-1.5 mt-2">
                   <div className="flex justify-between text-xs font-semibold">
@@ -442,6 +467,16 @@ export default function Home() {
                       className="bg-gradient-to-r from-indigo-500 to-purple-500 h-full rounded-full transition-all duration-300" 
                       style={{ width: `${progress}%` }}
                     />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-gray-400 mt-1 font-medium">
+                    <span>
+                      {isProcessing ? (
+                        <>Time Elapsed: <span className="text-white font-mono">{processingTime}s</span></>
+                      ) : finalTime !== null ? (
+                        <>Completed in <span className="text-emerald-400 font-bold">{finalTime}s!</span></>
+                      ) : null}
+                    </span>
+                    <span>{isProcessing ? 'Status: processing' : 'Status: finished'}</span>
                   </div>
                 </div>
               )}

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Groq } from 'groq-sdk';
 
-const defaultModel = 'llama-3.3-70b-specdec';
+const defaultModel = 'llama-3.3-70b-versatile';
 
 export async function POST(req) {
   try {
