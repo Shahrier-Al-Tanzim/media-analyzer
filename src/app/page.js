@@ -176,7 +176,7 @@ export default function Home() {
     ]);
 
     // 2. Batch Processing
-    const BATCH_SIZE = 25; // Set to 20 to prevent Groq JSON validation failures while keeping execution fast
+    const BATCH_SIZE = 30; // Set to 20 to prevent Groq JSON validation failures while keeping execution fast
     const finalCleaned = [];
     const originalMap = new Map(fileData.map(r => [r.id, { ...r }]));
     
@@ -598,7 +598,7 @@ export default function Home() {
                   <tr className="bg-white/5 text-gray-400 font-bold uppercase tracking-wider border-b border-white/5">
                     <th className="p-3 text-center w-12">ID</th>
                     <th className="p-3">Feedback Message</th>
-                    <th className="p-3 w-24 text-center">Sentiment</th>
+                    <th className="p-3 w-32 text-center whitespace-nowrap">Sentiment</th>
                     <th className="p-3 w-20 text-center">Severity</th>
                     <th className="p-3 w-20 text-center">Risk</th>
                   </tr>
@@ -616,7 +616,7 @@ export default function Home() {
                         )}
                       </td>
                       <td className="p-3 text-center">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border whitespace-nowrap ${
                           r.sentiment === 'positive' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
                           r.sentiment === 'negative' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
                           'bg-gray-500/10 text-gray-400 border-gray-500/20'
