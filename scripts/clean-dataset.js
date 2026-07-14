@@ -57,7 +57,7 @@ async function cleanData() {
 
 
     // 2. Batch Processing
-    const BATCH_SIZE = 25; // Set to 25 to prevent Groq JSON validation failures while keeping execution fast
+    const BATCH_SIZE = 30; // Set to 25 to prevent Groq JSON validation failures while keeping execution fast
     const cleanedRecords = [];
 // Btach size 15 needed for vercel
     for (let i = 0; i < uniqueRecords.length; i += BATCH_SIZE) {
