@@ -769,8 +769,8 @@ export default function Home() {
                   Viral Crisis Feed (High Engagement Failures)
                 </h3>
                 <div className="flex flex-col gap-3">
-                  {viralCrisisFeed.map((post) => (
-                    <div key={post.id} className="p-3 bg-rose-950/10 border border-rose-500/10 rounded-xl flex items-start gap-3 hover:bg-rose-950/20 transition-colors">
+                  {viralCrisisFeed.map((post, index) => (
+                    <div key={`${post.id}-${index}`} className="p-3 bg-rose-950/10 border border-rose-500/10 rounded-xl flex items-start gap-3 hover:bg-rose-950/20 transition-colors">
                       <div className="flex flex-col items-center justify-center bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded text-center min-w-[50px]">
                         <span className="text-[9px] text-rose-400 font-extrabold uppercase leading-none">Reach</span>
                         <span className="text-sm font-extrabold text-white mt-1 leading-none">{post.engagement}</span>
@@ -880,8 +880,8 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {currentItems.map((r) => (
-                  <tr key={r.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                {currentItems.map((r, index) => (
+                  <tr key={`${r.id}-${index}`} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
                     <td className="p-3 text-center text-gray-500 font-mono">{r.id}</td>
                     <td className="p-3 flex flex-col gap-1 max-w-[340px] md:max-w-md">
                       <span className="text-white font-medium line-clamp-2">{r.text}</span>
