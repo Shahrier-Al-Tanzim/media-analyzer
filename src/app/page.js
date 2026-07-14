@@ -556,7 +556,8 @@ export default function Home() {
         <div className="flex border-b border-white/5 pb-0.5 gap-2">
           <button 
             onClick={() => setActiveTab("analytics")}
-            className={`w-48 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
+            style={{ width: '192px' }}
+            className={`flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
               activeTab === 'analytics' 
                 ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
                 : 'border-transparent text-gray-400 hover:text-white'
@@ -567,7 +568,8 @@ export default function Home() {
           </button>
           <button 
             onClick={() => setActiveTab("explorer")}
-            className={`w-48 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
+            style={{ width: '192px' }}
+            className={`flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
               activeTab === 'explorer' 
                 ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
                 : 'border-transparent text-gray-400 hover:text-white'
@@ -578,7 +580,8 @@ export default function Home() {
           </button>
           <button 
             onClick={() => setActiveTab("pipeline")}
-            className={`w-48 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
+            style={{ width: '192px' }}
+            className={`flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
               activeTab === 'pipeline' 
                 ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
                 : 'border-transparent text-gray-400 hover:text-white'
