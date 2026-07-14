@@ -30,12 +30,16 @@ import {
   ChevronRight,
   Download,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  Calendar,
+  Layers,
+  Sparkle,
+  RefreshCw
 } from 'lucide-react';
 
 export default function Home() {
-  // Navigation
-  const [activeTab, setActiveTab] = useState("pipeline"); // "analytics" | "explorer" | "pipeline"
+  // Navigation: starts on executive dashboard welcome state
+  const [activeTab, setActiveTab] = useState("analytics"); // "analytics" | "explorer" | "pipeline"
 
   // Data State
   const [fileData, setFileData] = useState(null);
@@ -59,6 +63,9 @@ export default function Home() {
   const [sentimentFilter, setSentimentFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
+  const [platformFilter, setPlatformFilter] = useState("all");
+  const [startDateFilter, setStartDateFilter] = useState("2026-06-01");
+  const [endDateFilter, setEndDateFilter] = useState("2026-06-30");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -162,13 +169,18 @@ export default function Home() {
           // Reset states for raw file
           setCleanedRecords([]);
           setProcessingMetrics(null);
-          setStatusLogs([`Loaded raw file "${file.name}" with ${parsed.length} rows. Go to "Pipeline Console" tab to process it.`]);
-          setActiveTab("pipeline"); // Stay on pipeline to clean it
+          setStatusLogs([`Loaded raw file "${file.name}" with ${parsed.length} rows. Go to "Data Cleaner" tab to process it.`]);
+          setActiveTab("pipeline"); // Switch to data cleaner console to clean it
         }
         
         setProgress(0);
       } catch (err) {
         alert('Error parsing file: ' + err.message);
+      } finally {
+        // ALWAYS reset the file input value so the same file can be uploaded again
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       }
     };
     reader.readAsText(file);
@@ -308,8 +320,8 @@ export default function Home() {
           }
 
           // Programmatic fields
-          const reactions = parseInt(record.reactions || 0);
-          const comments = parseInt(record.comments || 0);
+          const reactions = parseInt(record.reactions || 0, 10);
+          const comments = parseInt(record.comments || 0, 10);
           record.engagement = reactions + comments;
           record.mentioned_competitors = record.mentioned_competitors || [];
           record.is_competitor_comparison = record.mentioned_competitors.length > 0;
@@ -333,7 +345,7 @@ export default function Home() {
           record.severity_level = 'Low';
           record.mentioned_competitors = [];
           record.brand_mention = record.brand_mention || false;
-          record.engagement = parseInt(record.reactions || 0) + parseInt(record.comments || 0);
+          record.engagement = parseInt(record.reactions || 0, 10) + parseInt(record.comments || 0, 10);
           record.is_competitor_comparison = false;
           record.is_high_risk = false;
           
@@ -453,8 +465,16 @@ export default function Home() {
     const matchesSentiment = sentimentFilter === 'all' || r.sentiment === sentimentFilter;
     const matchesSeverity = severityFilter === 'all' || r.severity_level === severityFilter;
     const matchesRisk = riskFilter === 'all' || (riskFilter === 'high_risk' && r.is_high_risk);
+    const matchesPlatform = platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
+    
+    // Parse timestamp to date comparison
+    let matchesDate = true;
+    if (r.timestamp && r.timestamp.length >= 10) {
+      const rowDate = r.timestamp.substring(0, 10);
+      matchesDate = rowDate >= startDateFilter && rowDate <= endDateFilter;
+    }
 
-    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk;
+    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate;
   });
 
   // Pagination Logic
@@ -463,8 +483,8 @@ export default function Home() {
   const currentItems = filteredRecords.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
-  // --- ANALYTICS COMPUTATIONS ---
-  const relevantRecords = cleanedRecords.filter(r => r.brand_mention !== false && r.topic !== 'off_topic');
+  // --- ANALYTICS COMPUTATIONS (Uses Filtered Records so dashboard updates live!) ---
+  const relevantRecords = filteredRecords.filter(r => r.brand_mention !== false && r.topic !== 'off_topic');
   const totalRelevant = relevantRecords.length;
 
   const countPositive = relevantRecords.filter(r => r.sentiment === 'positive').length;
@@ -483,8 +503,8 @@ export default function Home() {
   const highRiskCrisisCount = relevantRecords.filter(r => r.is_high_risk).length;
 
   // 4. Brand Purity Relevance Ratio
-  const relevanceRatio = cleanedRecords.length > 0 
-    ? Math.round((totalRelevant / cleanedRecords.length) * 100) 
+  const relevanceRatio = filteredRecords.length > 0 
+    ? Math.round((totalRelevant / filteredRecords.length) * 100) 
     : 0;
 
   // 5. Pie Chart Data (Sentiment Breakdown)
@@ -508,21 +528,90 @@ export default function Home() {
     .sort((a, b) => b.total - a.total)
     .slice(0, 8); // Top 8 topics to prevent overcrowding
 
-  // 7. Fire Feed (Top 4 critical crisis posts)
+  // 7. Platform Negativity Density Comparison Chart
+  const platformBreakdownMap = {};
+  filteredRecords.forEach(r => {
+    if (!platformBreakdownMap[r.platform]) {
+      platformBreakdownMap[r.platform] = { name: r.platform, negative: 0, total: 0 };
+    }
+    platformBreakdownMap[r.platform].total += 1;
+    if (r.sentiment === 'negative') {
+      platformBreakdownMap[r.platform].negative += 1;
+    }
+  });
+
+  const platformNegativityData = Object.values(platformBreakdownMap).map(p => ({
+    name: p.name,
+    'Negative %': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0
+  })).sort((a, b) => b['Negative %'] - a['Negative %']);
+
+  // 8. TakaPay vs NgoodPay strengths/weaknesses grouped bar chart
+  let countSpeedNgoodPay = 0;
+  let countSpeedTakaPay = 0;
+  let countAgentNgoodPay = 0;
+  let countAgentTakaPay = 0;
+  let countCashbackNgoodPay = 0;
+  let countCashbackTakaPay = 0;
+  let countRechargeNgoodPay = 0;
+  let countRechargeTakaPay = 0;
+
+  filteredRecords.forEach(r => {
+    const textLower = r.text.toLowerCase();
+    const hasNgoodPay = textLower.includes('ngoodpay');
+    
+    // 1. App Speed
+    if (textLower.includes('speed') || textLower.includes('fast') || textLower.includes('slow') || textLower.includes('pending') || textLower.includes('atke')) {
+      if (hasNgoodPay) countSpeedNgoodPay++;
+      else countSpeedTakaPay++;
+    }
+    // 2. Agent Network
+    if (textLower.includes('agent') || textLower.includes('network') || textLower.includes('area') || textLower.includes('location') || textLower.includes('pabo')) {
+      if (hasNgoodPay) countAgentNgoodPay++;
+      else countAgentTakaPay++;
+    }
+    // 3. Cashback Offers
+    if (textLower.includes('cashback') || textLower.includes('offer') || textLower.includes('bonus') || textLower.includes('discount')) {
+      if (hasNgoodPay) countCashbackNgoodPay++;
+      else countCashbackTakaPay++;
+    }
+    // 4. Mobile Recharge
+    if (textLower.includes('recharge') || textLower.includes('bill') || textLower.includes('load')) {
+      if (hasNgoodPay) countRechargeNgoodPay++;
+      else countRechargeTakaPay++;
+    }
+  });
+
+  const competitorComparisonData = [
+    { name: 'App Speed', 'TakaPay (Strength)': countSpeedTakaPay, 'NgoodPay': countSpeedNgoodPay },
+    { name: 'Agent Network', 'TakaPay (Strength)': countAgentTakaPay, 'NgoodPay': countAgentNgoodPay },
+    { name: 'Cashback Offers', 'TakaPay (Strength)': countCashbackTakaPay, 'NgoodPay': countCashbackNgoodPay },
+    { name: 'Recharges & Bills', 'TakaPay (Strength)': countRechargeTakaPay, 'NgoodPay': countRechargeNgoodPay }
+  ];
+
+  // 9. Fire Feed (Top 4 critical crisis posts)
   const viralCrisisFeed = [...relevantRecords]
     .filter(r => r.sentiment === 'negative')
     .sort((a, b) => (b.engagement || 0) - (a.engagement || 0))
     .slice(0, 4);
 
-  // 8. Competitor simple metrics
-  const competitorPosts = cleanedRecords.filter(r => r.is_competitor_comparison);
+  // 10. Competitor simple metrics
+  const competitorPosts = filteredRecords.filter(r => r.is_competitor_comparison);
   const totalCompetitorMentions = competitorPosts.length;
   const competitorSentimentAvg = competitorPosts.length > 0
     ? Math.round((competitorPosts.filter(r => r.sentiment === 'negative').length / competitorPosts.length) * 100)
     : 0;
 
   return (
-    <div className="min-h-screen py-8 px-4 md:px-8 max-w-7xl mx-auto flex flex-col gap-6">
+    <div className="min-h-screen py-8 px-4 md:px-8 max-w-7xl mx-auto flex flex-col gap-6 w-full">
+      {/* Hidden Input File Trigger (Always at the top level so it is accessible from any component context) */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        accept=".json,.csv"
+        className="hidden" 
+      />
+
       {/* Header */}
       <header className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[rgba(255,255,255,0.08)] pb-5">
         <div>
@@ -539,266 +628,438 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Global Dataset Status */}
+        {/* Global Dataset Status - Made Clickable to Re-upload files at any time */}
         {cleanedRecords.length > 0 && (
-          <div className="flex items-center gap-2.5 bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl">
-            <Database className="w-4 h-4 text-indigo-400" />
+          <button 
+            onClick={() => fileInputRef.current.click()}
+            className="flex items-center gap-2.5 bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl hover:bg-white/10 hover:border-indigo-500/30 transition-all cursor-pointer group text-left"
+          >
+            <Database className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
             <div className="flex flex-col">
-              <span className="text-[10px] text-gray-400 font-semibold uppercase tracking-wider">Active File</span>
+              <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                Active File <RefreshCw className="w-2.5 h-2.5 text-indigo-400 animate-hover group-hover:rotate-180 transition-transform" />
+              </span>
               <span className="text-xs font-bold text-white max-w-[150px] truncate">{fileName} ({cleanedRecords.length} rows)</span>
             </div>
-          </div>
+          </button>
         )}
       </header>
 
       {/* Tabs Selector Navigation */}
-      {cleanedRecords.length > 0 && (
-        <div className="flex border-b border-white/5 pb-0.5 gap-2">
-          <button 
-            onClick={() => setActiveTab("analytics")}
-            style={{ width: '200px', minWidth: '200px', maxWidth: '200px' }}
-            className={`tab-btn flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
-              activeTab === 'analytics' 
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <TrendingUp className="w-4 h-4" />
-            Executive Dashboard
-          </button>
+      <div className="flex border-b border-white/5 pb-0.5 gap-2">
+        <button 
+          onClick={() => setActiveTab("analytics")}
+          style={{ width: '200px', minWidth: '200px', maxWidth: '200px' }}
+          className={`tab-btn flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'analytics' 
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
+        >
+          <TrendingUp className="w-4 h-4" />
+          Executive Dashboard
+        </button>
+
+        {cleanedRecords.length > 0 && (
           <button 
             onClick={() => setActiveTab("explorer")}
             style={{ width: '200px', minWidth: '200px', maxWidth: '200px' }}
-            className={`tab-btn flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
+            className={`tab-btn flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === 'explorer' 
                 ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
                 : 'border-transparent text-gray-400 hover:text-white'
-            }`}
+          }`}
           >
             <Table className="w-4 h-4" />
             Data Explorer
           </button>
-          <button 
-            onClick={() => setActiveTab("pipeline")}
-            style={{ width: '200px', minWidth: '200px', maxWidth: '200px' }}
-            className={`tab-btn flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all ${
-              activeTab === 'pipeline' 
-                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" />
-            Pipeline Console {isProcessing && <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />}
-          </button>
-        </div>
+        )}
+
+        <button 
+          onClick={() => setActiveTab("pipeline")}
+          style={{ width: '200px', minWidth: '200px', maxWidth: '200px' }}
+          className={`tab-btn flex-shrink-0 justify-center px-4 py-2 text-xs font-bold border-b-2 flex items-center gap-2 transition-all cursor-pointer ${
+            activeTab === 'pipeline' 
+              ? 'border-indigo-500 text-indigo-400 bg-indigo-500/5' 
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          Data Cleaner {isProcessing && <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />}
+        </button>
+      </div>
+
+      {/* Global Interactive Filters Selector */}
+      {cleanedRecords.length > 0 && activeTab !== 'pipeline' && (
+        <section className="glass-panel p-4 rounded-2xl flex flex-wrap gap-4 items-center bg-white/[0.02]">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1">
+              Filters:
+            </span>
+          </div>
+
+          {/* Social Media Platform Filter */}
+          <div className="flex flex-col gap-1 min-w-[130px]">
+            <select 
+              value={platformFilter} 
+              onChange={(e) => { setPlatformFilter(e.target.value); setCurrentPage(1); }}
+              className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
+            >
+              <option value="all">All Social Medias</option>
+              <option value="Facebook">Facebook</option>
+              <option value="Reddit">Reddit</option>
+              <option value="Twitter">Twitter/X</option>
+              <option value="TikTok">TikTok</option>
+              <option value="Instagram">Instagram</option>
+              <option value="YouTube">YouTube</option>
+              <option value="News/Media">News & Media</option>
+            </select>
+          </div>
+
+          {/* Sentiment Filter */}
+          <div className="flex flex-col gap-1 min-w-[120px]">
+            <select 
+              value={sentimentFilter} 
+              onChange={(e) => { setSentimentFilter(e.target.value); setCurrentPage(1); }}
+              className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
+            >
+              <option value="all">All Sentiments</option>
+              <option value="positive">Positive</option>
+              <option value="negative">Negative</option>
+              <option value="neutral">Neutral</option>
+            </select>
+          </div>
+
+          {/* Date Timeline Picker */}
+          <div className="flex items-center gap-2 bg-white/5 border border-white/5 px-3 py-1 rounded-xl">
+            <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="flex items-center gap-1 text-[11px]">
+              <input 
+                type="date" 
+                value={startDateFilter}
+                min="2026-06-01"
+                max="2026-06-30"
+                onChange={(e) => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
+                className="bg-transparent text-white focus:outline-none cursor-pointer font-bold"
+              />
+              <span className="text-gray-500">to</span>
+              <input 
+                type="date" 
+                value={endDateFilter}
+                min="2026-06-01"
+                max="2026-06-30"
+                onChange={(e) => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
+                className="bg-transparent text-white focus:outline-none cursor-pointer font-bold"
+              />
+            </div>
+          </div>
+
+          {/* Reset Filters Quick Button */}
+          {(platformFilter !== 'all' || sentimentFilter !== 'all' || startDateFilter !== '2026-06-01' || endDateFilter !== '2026-06-30') && (
+            <button 
+              onClick={() => {
+                setPlatformFilter('all');
+                setSentimentFilter('all');
+                setStartDateFilter('2026-06-01');
+                setEndDateFilter('2026-06-30');
+                setSearchTerm('');
+                setSeverityFilter('all');
+                setRiskFilter('all');
+                setCurrentPage(1);
+              }}
+              className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer transition-colors"
+            >
+              Reset Filters
+            </button>
+          )}
+        </section>
       )}
 
+      {/* --- TAB CONTENT AREA --- */}
+
       {/* TAB 1: EXECUTIVE ANALYTICS DASHBOARD */}
-      {activeTab === 'analytics' && cleanedRecords.length > 0 && (
-        <div className="flex flex-col gap-6">
-          {/* Dashboard KPI Grid */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* KPI 1: Net Sentiment */}
-            <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px]">
-              <div className="flex justify-between items-center text-gray-400">
-                <span className="text-[10px] uppercase font-extrabold tracking-wider">Net Brand Sentiment</span>
-                <Percent className="w-4 h-4 text-indigo-400" />
-              </div>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className={`text-4xl font-extrabold tracking-tight ${netSentimentScore >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {netSentimentScore >= 0 ? `+${netSentimentScore}%` : `${netSentimentScore}%`}
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1 font-medium">
-                Positive mentions minus negative mentions.
+      {activeTab === 'analytics' && (
+        cleanedRecords.length === 0 ? (
+          /* NO DATA STATE / WELCOME LANDING PAGE */
+          <div className="flex flex-col gap-6 py-10 w-full items-center">
+            <div className="glass-panel p-10 rounded-3xl flex flex-col items-center justify-center text-center border-indigo-500/10 bg-gradient-to-b from-indigo-950/10 to-transparent max-w-4xl w-full">
+              <span className="p-3 bg-indigo-500/10 rounded-full text-indigo-400 mb-4 border border-indigo-500/20">
+                <Sparkles className="w-10 h-10" />
+              </span>
+              <h2 className="text-3xl font-extrabold text-white tracking-tight">Welcome to TakaPay Media Analyzer</h2>
+              <p className="text-xs text-gray-400 mt-2 max-w-lg leading-relaxed">
+                This analytics tool processes multilingual Banglish datasets, cleans sentiment contradictions, translates text, and builds visual dashboards.
               </p>
-            </div>
 
-            {/* KPI 2: Total Reach / Engagement */}
-            <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px]">
-              <div className="flex justify-between items-center text-gray-400">
-                <span className="text-[10px] uppercase font-extrabold tracking-wider">Customer Reach</span>
-                <Users className="w-4 h-4 text-purple-400" />
-              </div>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-4xl font-extrabold tracking-tight text-white">
-                  {totalEngagement.toLocaleString()}
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1 font-medium">
-                Total social reactions + comments analyzed.
-              </p>
-            </div>
-
-            {/* KPI 3: High Risk Crisis */}
-            <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px] relative overflow-hidden">
-              <div className="flex justify-between items-center text-gray-400">
-                <span className="text-[10px] uppercase font-extrabold tracking-wider">Critical Incidents</span>
-                <AlertTriangle className="w-4 h-4 text-rose-500" />
-              </div>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className={`text-4xl font-extrabold tracking-tight ${highRiskCrisisCount > 0 ? 'text-rose-500' : 'text-gray-400'}`}>
-                  {highRiskCrisisCount}
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1 font-medium">
-                Viral negative posts requiring urgent action.
-              </p>
-              {highRiskCrisisCount > 0 && <span className="absolute top-0 right-0 w-16 h-16 bg-rose-500/5 rounded-full blur-xl" />}
-            </div>
-
-            {/* KPI 4: Brand Relevance */}
-            <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px]">
-              <div className="flex justify-between items-center text-gray-400">
-                <span className="text-[10px] uppercase font-extrabold tracking-wider">Mentions Relevance</span>
-                <Database className="w-4 h-4 text-emerald-400" />
-              </div>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className="text-4xl font-extrabold tracking-tight text-emerald-400">
-                  {relevanceRatio}%
-                </span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1 font-medium">
-                Percentage of relevant comments (Filtered out {relevanceRatio > 0 ? 100 - relevanceRatio : 0}% noise).
-              </p>
-            </div>
-          </section>
-
-          {/* Charts Row */}
-          <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Sentiment Donut Chart (2/5 Cols) */}
-            <div className="lg:col-span-2 glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-4">
-                Overall Sentiment Distribution
-              </h3>
-              <div className="h-60 w-full relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={sentimentChartData}
-                      innerRadius={65}
-                      outerRadius={85}
-                      paddingAngle={3}
-                      dataKey="value"
-                    >
-                      {sentimentChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
-                      itemStyle={{ color: '#fff', fontSize: '12px' }}
-                    />
-                    <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#9ca3af' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-                {/* Center text of Donut */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
-                  <span className="text-2xl font-extrabold text-white block leading-none">{totalRelevant}</span>
-                  <span className="text-[9px] text-gray-400 uppercase tracking-widest font-extrabold mt-1 block">Voices</span>
+              {/* Upload Selector Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-2xl mt-8">
+                {/* Option 1: Load pre-cleaned */}
+                <div 
+                  onClick={() => fileInputRef.current.click()}
+                  className="glass-panel p-6 rounded-2xl border border-dashed border-white/5 hover:border-indigo-500/30 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/[0.01] transition-all"
+                >
+                  <Database className="w-7 h-7 text-indigo-400 mb-2" />
+                  <h4 className="text-sm font-bold text-white">Load Pre-Cleaned Dataset</h4>
+                  <p className="text-[10px] text-gray-400 mt-1 max-w-[200px]">
+                    Drop `takapay_sample_data_cleaned.json` or `.csv` to launch the dashboard instantly.
+                  </p>
                 </div>
-              </div>
-            </div>
 
-            {/* Stacked Topic Bar Chart (3/5 Cols) */}
-            <div className="lg:col-span-3 glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-4">
-                Top Issues & Promos (Topic Analysis)
-              </h3>
-              <div className="h-60 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={topicChartData}
-                    layout="vertical"
-                    margin={{ top: 5, right: 15, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                    <XAxis type="number" stroke="#9ca3af" fontSize={9} />
-                    <YAxis dataKey="topic" type="category" stroke="#9ca3af" fontSize={9} width={90} />
-                    <Tooltip 
-                      contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
-                      itemStyle={{ fontSize: '11px' }}
-                    />
-                    <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                    <Bar dataKey="positive" stackId="a" fill="#10b981" name="Positive" />
-                    <Bar dataKey="neutral" stackId="a" fill="#6b7280" name="Neutral" />
-                    <Bar dataKey="negative" stackId="a" fill="#ef4444" name="Negative" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </section>
-
-          {/* Competitor Battleground & Crisis Fire Feed Row */}
-          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Competitor Battleground (1/3 Cols) */}
-            <div className="lg:col-span-1 glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[280px]">
-              <div>
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-4 flex items-center justify-between">
-                  Competitor Threat
-                  <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-full border border-indigo-500/10 font-bold uppercase">NgoodPay</span>
-                </h3>
-                <div className="flex flex-col gap-4 mt-6">
-                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                    <span className="text-xs text-gray-400">Total Mention Volume</span>
-                    <span className="text-base font-extrabold text-white">{totalCompetitorMentions} posts</span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-white/5 pb-2">
-                    <span className="text-xs text-gray-400">Threat Sentiment Level</span>
-                    <span className="text-xs font-bold text-rose-400 px-2 py-0.5 bg-rose-500/10 rounded border border-rose-500/10 uppercase">
-                      {competitorSentimentAvg}% Negative
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
-                    Users are frequently comparing TakaPay against competitor **NgoodPay** on cashback incentives, charges, and transaction speed.
+                {/* Option 2: Preprocess raw */}
+                <div 
+                  onClick={() => { setActiveTab("pipeline"); fileInputRef.current.click(); }}
+                  className="glass-panel p-6 rounded-2xl border border-dashed border-white/5 hover:border-purple-500/30 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/[0.01] transition-all"
+                >
+                  <Sparkle className="w-7 h-7 text-purple-400 mb-2" />
+                  <h4 className="text-sm font-bold text-white">Clean & Analyze Raw Data</h4>
+                  <p className="text-[10px] text-gray-400 mt-1 max-w-[200px]">
+                    Drop raw feed data to run the LLM-powered translation and sentiment correction pipeline.
                   </p>
                 </div>
               </div>
-              <button 
-                onClick={() => { setActiveTab("explorer"); setSearchTerm("NgoodPay"); }}
-                className="mt-4 w-full py-2 bg-white/5 hover:bg-white/10 text-white text-xs font-semibold rounded-xl border border-white/5 flex items-center justify-center gap-1.5 transition-colors"
-              >
-                Inspect Competitor Posts
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
             </div>
+          </div>
+        ) : (
+          /* ACTIVE ANALYTICS DASHBOARD */
+          <div className="flex flex-col gap-6">
+            {/* Dashboard KPI Grid */}
+            <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* KPI 1: Net Sentiment */}
+              <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px]">
+                <div className="flex justify-between items-center text-gray-400">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider">Net Brand Sentiment</span>
+                  <Percent className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className={`text-4xl font-extrabold tracking-tight ${netSentimentScore >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {netSentimentScore >= 0 ? `+${netSentimentScore}%` : `${netSentimentScore}%`}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Positive mentions minus negative mentions.
+                </p>
+              </div>
 
-            {/* Crisis Fire Feed (2/3 Cols) */}
-            <div className="lg:col-span-2 glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[280px]">
-              <div>
-                <h3 className="text-sm font-extrabold uppercase tracking-wider text-rose-400 mb-4 flex items-center gap-1.5">
-                  <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" />
-                  Viral Crisis Feed (High Engagement Failures)
+              {/* KPI 2: Total Reach / Engagement */}
+              <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px]">
+                <div className="flex justify-between items-center text-gray-400">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider">Customer Reach</span>
+                  <Users className="w-4 h-4 text-purple-400" />
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-4xl font-extrabold tracking-tight text-white">
+                    {totalEngagement.toLocaleString()}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Total social reactions + comments analyzed.
+                </p>
+              </div>
+
+              {/* KPI 3: High Risk Crisis */}
+              <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px] relative overflow-hidden">
+                <div className="flex justify-between items-center text-gray-400">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider">Critical Incidents</span>
+                  <AlertTriangle className="w-4 h-4 text-rose-500" />
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className={`text-4xl font-extrabold tracking-tight ${highRiskCrisisCount > 0 ? 'text-rose-500' : 'text-gray-400'}`}>
+                    {highRiskCrisisCount}
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Viral negative posts requiring urgent action.
+                </p>
+                {highRiskCrisisCount > 0 && <span className="absolute top-0 right-0 w-16 h-16 bg-rose-500/5 rounded-full blur-xl" />}
+              </div>
+
+              {/* KPI 4: Brand Relevance */}
+              <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[120px]">
+                <div className="flex justify-between items-center text-gray-400">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wider">Mentions Relevance</span>
+                  <Database className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-4xl font-extrabold tracking-tight text-emerald-400">
+                    {relevanceRatio}%
+                  </span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1 font-medium">
+                  Percentage of relevant comments (Filtered out {relevanceRatio > 0 ? 100 - relevanceRatio : 0}% noise).
+                </p>
+              </div>
+            </section>
+
+            {/* Charts Row 1: Donut & Stacked Bar Chart */}
+            <section className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              {/* Sentiment Donut Chart (2/5 Cols) */}
+              <div className="lg:col-span-2 glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-4">
+                  Overall Sentiment Distribution
                 </h3>
-                <div className="flex flex-col gap-3">
-                  {viralCrisisFeed.map((post, index) => (
-                    <div key={`${post.id}-${index}`} className="p-3 bg-rose-950/10 border border-rose-500/10 rounded-xl flex items-start gap-3 hover:bg-rose-950/20 transition-colors">
-                      <div className="flex flex-col items-center justify-center bg-rose-500/10 border border-rose-500/20 px-2 py-1 rounded text-center min-w-[50px]">
-                        <span className="text-[9px] text-rose-400 font-extrabold uppercase leading-none">Reach</span>
-                        <span className="text-sm font-extrabold text-white mt-1 leading-none">{post.engagement}</span>
-                      </div>
-                      <div className="flex-1 flex flex-col gap-1">
-                        <div className="flex justify-between items-center text-[10px] text-gray-400">
-                          <span className="font-bold text-rose-400">@{post.author} • {post.platform}</span>
-                          <span className="bg-rose-500/10 text-rose-300 px-1.5 py-0.2 rounded font-semibold text-[8px] uppercase">{post.severity_level}</span>
-                        </div>
-                        <p className="text-xs text-white line-clamp-1">{post.text}</p>
-                        {post.english_translation && post.english_translation !== post.text && (
-                          <p className="text-[10px] text-indigo-300/80 italic line-clamp-1">EN: {post.english_translation}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {viralCrisisFeed.length === 0 && (
-                    <span className="text-xs text-gray-500 text-center py-6">No critical negative incidents found.</span>
-                  )}
+                <div className="h-60 w-full relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={sentimentChartData}
+                        innerRadius={65}
+                        outerRadius={85}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {sentimentChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip 
+                        contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
+                        itemStyle={{ color: '#fff', fontSize: '12px' }}
+                      />
+                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#9ca3af' }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center text of Donut */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none">
+                    <span className="text-2xl font-extrabold text-white block leading-none">{totalRelevant}</span>
+                    <span className="text-[9px] text-gray-400 uppercase tracking-widest font-extrabold mt-1 block">Voices</span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-          </section>
-        </div>
+              {/* Stacked Topic Bar Chart (3/5 Cols) */}
+              <div className="lg:col-span-3 glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
+                <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-4">
+                  Top Issues & Promos (Topic Analysis)
+                </h3>
+                <div className="h-60 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={topicChartData}
+                      layout="vertical"
+                      margin={{ top: 5, right: 15, left: 10, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis type="number" stroke="#9ca3af" fontSize={9} />
+                      <YAxis dataKey="topic" type="category" stroke="#9ca3af" fontSize={9} width={90} />
+                      <Tooltip 
+                        contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
+                        itemStyle={{ fontSize: '11px' }}
+                      />
+                      <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                      <Bar dataKey="positive" stackId="a" fill="#10b981" name="Positive" />
+                      <Bar dataKey="neutral" stackId="a" fill="#6b7280" name="Neutral" />
+                      <Bar dataKey="negative" stackId="a" fill="#ef4444" name="Negative" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </section>
+
+            {/* Charts Row 2: Competitor Battleground & Platform Negativity Density */}
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              
+              {/* TakaPay vs NgoodPay Grouped Bar Chart */}
+              <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
+                <div>
+                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-2 flex items-center justify-between">
+                    TakaPay vs. NgoodPay (Competitive Comparison)
+                    <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-full border border-indigo-500/10 font-bold uppercase">NgoodPay</span>
+                  </h3>
+                  <p className="text-[10px] text-gray-400 mb-4">
+                    Visualizing strengths (TakaPay preferred) vs. weaknesses (NgoodPay preferred) by keyword mention frequency.
+                  </p>
+                </div>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={competitorComparisonData}
+                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="name" stroke="#9ca3af" fontSize={9} />
+                      <YAxis stroke="#9ca3af" fontSize={9} />
+                      <Tooltip 
+                        contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
+                        itemStyle={{ fontSize: '11px' }}
+                      />
+                      <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                      <Bar dataKey="TakaPay (Strength)" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="NgoodPay" fill="#a855f7" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Platform Negativity Density Chart */}
+              <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
+                <div>
+                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
+                    <Layers className="w-4 h-4 text-purple-400" />
+                    Social Channel Negativity Density (% Negative Sentiment)
+                  </h3>
+                  <p className="text-[10px] text-gray-400 mb-4">
+                    Indicates which platforms contain the highest concentration of customer complaints.
+                  </p>
+                </div>
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={platformNegativityData}
+                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="name" stroke="#9ca3af" fontSize={9} />
+                      <YAxis stroke="#9ca3af" fontSize={9} unit="%" />
+                      <Tooltip 
+                        contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
+                        itemStyle={{ fontSize: '11px' }}
+                        formatter={(value) => `${value}%`}
+                      />
+                      <Bar dataKey="Negative %" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+            </section>
+
+            {/* Third Row: Crisis Fire Feed */}
+            <section className="grid grid-cols-1 gap-6">
+              {/* Crisis Fire Feed */}
+              <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[200px]">
+                <div>
+                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-rose-400 mb-4 flex items-center gap-1.5">
+                    <ShieldAlert className="w-4 h-4 text-rose-500 animate-pulse" />
+                    Viral Crisis Feed (High Engagement Failures)
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {viralCrisisFeed.map((post, index) => (
+                      <div key={`${post.id}-${index}`} className="p-3.5 bg-rose-950/15 border border-rose-500/10 rounded-xl flex items-start gap-3 hover:bg-rose-950/25 transition-colors">
+                        <div className="flex flex-col items-center justify-center bg-rose-500/10 border border-rose-500/20 px-2 py-1.5 rounded text-center min-w-[55px]">
+                          <span className="text-[9px] text-rose-400 font-extrabold uppercase leading-none">Reach</span>
+                          <span className="text-sm font-extrabold text-white mt-1 leading-none">{post.engagement}</span>
+                        </div>
+                        <div className="flex-1 flex flex-col gap-1">
+                          <div className="flex justify-between items-center text-[10px] text-gray-400">
+                            <span className="font-bold text-rose-400">@{post.author} • {post.platform}</span>
+                            <span className="bg-rose-500/10 text-rose-300 px-1.5 py-0.2 rounded font-semibold text-[8px] uppercase">{post.severity_level}</span>
+                          </div>
+                          <p className="text-xs text-white line-clamp-2">{post.text}</p>
+                          {post.english_translation && post.english_translation !== post.text && (
+                            <p className="text-[10px] text-indigo-300/80 italic line-clamp-1">EN: {post.english_translation}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {viralCrisisFeed.length === 0 && (
+                      <div className="col-span-2 text-xs text-gray-500 text-center py-6">No critical negative incidents found.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        )
       )}
 
       {/* TAB 2: DATA EXPLORER (TABLE VIEW) */}
@@ -812,14 +1073,14 @@ export default function Home() {
             <div className="flex gap-2">
               <button 
                 onClick={downloadJSON}
-                className="px-3.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 flex items-center gap-1.5 transition-colors"
+                className="px-3.5 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 text-xs font-bold rounded-lg border border-indigo-500/20 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download JSON
               </button>
               <button 
                 onClick={downloadCSV}
-                className="px-3.5 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-bold rounded-lg border border-purple-500/20 flex items-center gap-1.5 transition-colors"
+                className="px-3.5 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 text-xs font-bold rounded-lg border border-purple-500/20 flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download CSV
@@ -836,13 +1097,13 @@ export default function Home() {
                 placeholder="Search comments..." 
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-                className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full"
+                className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full focus:outline-none"
               />
             </div>
             <select 
               value={sentimentFilter} 
               onChange={(e) => { setSentimentFilter(e.target.value); setCurrentPage(1); }}
-              className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer"
+              className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Sentiments</option>
               <option value="positive">Positive</option>
@@ -852,7 +1113,7 @@ export default function Home() {
             <select 
               value={severityFilter} 
               onChange={(e) => { setSeverityFilter(e.target.value); setCurrentPage(1); }}
-              className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer"
+              className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Severities</option>
               <option value="Urgent">Urgent</option>
@@ -863,7 +1124,7 @@ export default function Home() {
             <select 
               value={riskFilter} 
               onChange={(e) => { setRiskFilter(e.target.value); setCurrentPage(1); }}
-              className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer"
+              className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Risks</option>
               <option value="high_risk">High Risk Crisis</option>
@@ -962,7 +1223,7 @@ export default function Home() {
       )}
 
       {/* TAB 3: DATA PREPROCESSING PIPELINE & UPLOAD CONSOLE */}
-      {(activeTab === 'pipeline' || cleanedRecords.length === 0) && (
+      {activeTab === 'pipeline' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Side: Upload and Settings */}
           <div className="lg:col-span-1 flex flex-col gap-6">
@@ -975,13 +1236,6 @@ export default function Home() {
                 fileName ? 'border-indigo-500/50 bg-indigo-950/10' : 'border-white/10 hover:border-indigo-500/30'
               }`}
             >
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                accept=".json,.csv"
-                className="hidden" 
-              />
               <div className="p-4 bg-indigo-500/10 rounded-full text-indigo-400 mb-4 border border-indigo-500/20">
                 <UploadCloud className="w-8 h-8" />
               </div>
