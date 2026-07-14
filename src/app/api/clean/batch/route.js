@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { Groq } from 'groq-sdk';
 
-const defaultModel = 'openai/gpt-oss-120b';
+const defaultModel = 'llama-3.3-70b-versatile';
 
 export async function POST(req) {
   try {
@@ -38,7 +38,7 @@ For each comment in the array:
 2. Assign a sentiment score from 0 to 100.
 3. Translate any Bengali or Banglish comments to clear, professional English. If it is already in English, keep it as-is.
 4. Assess a "severity_level" ("Urgent", "High", "Medium", "Low") based on content (e.g., money stuck or failed transaction is Urgent/High, query/fee complaint is Medium, off-topic is Low).
-5. Extract any competitor brands mentioned in the text (e.g., "NgoodPay", "bKash", "Nagad").
+5. Extract any competitor mobile financial service brands mentioned in the text (specifically look for financial services like "NgoodPay", "bKash", "Nagad"). Do NOT extract mobile network operators/providers like Grameenphone, GP, Teletalk, Robi, or Banglalink.
 6. Set "brand_mention" to true if "TakaPay" is explicitly or contextually mentioned, and false if it is off-topic and TakaPay is not mentioned.
 
 You must return a JSON object containing an array of objects under a "records" key, matching the order and number of inputs:
