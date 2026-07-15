@@ -34,7 +34,8 @@ import {
   Calendar,
   Layers,
   Sparkle,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 
 // Custom Recharts Legend Renderer to enforce "Positive -> Neutral -> Negative" order
@@ -102,6 +103,7 @@ export default function Home() {
   const fileInputRef = useRef(null);
   const logContainerRef = useRef(null);
   const hasLoadedRef = useRef(false);
+  const isStopRequestedRef = useRef(false);
 
   // Load state from localStorage on page mount
   useEffect(() => {
@@ -348,6 +350,7 @@ export default function Home() {
   const processDataset = async () => {
     if (!fileData || fileData.length === 0) return;
     setIsProcessing(true);
+    isStopRequestedRef.current = false;
     setProgress(5);
     setProcessingTime(0);
     setFinalTime(null);
@@ -387,6 +390,12 @@ export default function Home() {
     const originalMap = new Map(fileData.map(r => [r.id, { ...r }]));
     
     for (let i = 0; i < unique.length; i += BATCH_SIZE) {
+      if (isStopRequestedRef.current) {
+        setStatusLogs(prev => [...prev, '🛑 Pipeline execution cancelled by user.']);
+        setIsProcessing(false);
+        clearInterval(timerInterval);
+        return;
+      }
       const batch = unique.slice(i, i + BATCH_SIZE);
       const batchNum = Math.floor(i / BATCH_SIZE) + 1;
       const totalBatches = Math.ceil(unique.length / BATCH_SIZE);
@@ -877,25 +886,46 @@ export default function Home() {
               TakaPay Media Analyzer
             </h1>
           </div>
-          <p className="text-xs text-gray-400 mt-1">
-            Visual brand health analytics and data cleaning powered by Llama 3 & Gemini.
-          </p>
         </div>
 
         {/* Global Dataset Status - Made Clickable to Re-upload files at any time */}
         {cleanedRecords.length > 0 && (
-          <button 
-            onClick={() => fileInputRef.current.click()}
-            className="flex items-center gap-2.5 bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl hover:bg-white/10 hover:border-indigo-500/30 transition-all cursor-pointer group text-left"
-          >
-            <Database className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
-            <div className="flex flex-col">
-              <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
-                Active File <RefreshCw className="w-2.5 h-2.5 text-indigo-400 animate-hover group-hover:rotate-180 transition-transform" />
-              </span>
-              <span className="text-xs font-bold text-white max-w-[150px] truncate">{fileName} ({cleanedRecords.length} rows)</span>
-            </div>
-          </button>
+          <div className="flex items-center gap-2 animate-fadeIn">
+            <button 
+              onClick={() => fileInputRef.current.click()}
+              className="flex items-center gap-2.5 bg-white/5 border border-white/5 px-3 py-1.5 rounded-xl hover:bg-white/10 hover:border-indigo-500/30 transition-all cursor-pointer group text-left"
+              title="Click to upload a different file"
+            >
+              <Database className="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" />
+              <div className="flex flex-col">
+                <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1">
+                  Active File <RefreshCw className="w-2.5 h-2.5 text-indigo-400 animate-hover group-hover:rotate-180 transition-transform" />
+                </span>
+                <span className="text-xs font-bold text-white max-w-[150px] truncate">{fileName} ({cleanedRecords.length} rows)</span>
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm("Are you sure you want to remove the active dataset? This will clear the dashboard state.")) {
+                  setFileData(null);
+                  setCleanedRecords([]);
+                  setFileName("");
+                  setFileType("");
+                  setRawRecordsCount(0);
+                  setDeduplicatedCount(0);
+                  setProcessingMetrics(null);
+                  setStatusLogs([]);
+                  setFinalTime(null);
+                  setProgress(0);
+                  localStorage.clear();
+                }
+              }}
+              className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/30 rounded-xl transition-all cursor-pointer"
+              title="Remove File and Reset App"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
         )}
       </header>
 
@@ -1620,13 +1650,24 @@ export default function Home() {
                   </select>
                 </div>
 
-                <button 
-                  onClick={processDataset}
-                  disabled={isProcessing}
-                  className="glow-button w-full py-3.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed text-center transition-all duration-300 cursor-pointer"
-                >
-                  {isProcessing ? 'Processing Batches...' : 'Execute Preprocessing Pipeline'}
-                </button>
+                {isProcessing ? (
+                  <button 
+                    onClick={() => {
+                      isStopRequestedRef.current = true;
+                      setStatusLogs(prev => [...prev, '⚠️ Cancellation request sent...']);
+                    }}
+                    className="w-full py-3.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-lg shadow-rose-500/20 text-center transition-all duration-300 cursor-pointer"
+                  >
+                    Stop Pipeline Execution
+                  </button>
+                ) : (
+                  <button 
+                    onClick={processDataset}
+                    className="glow-button w-full py-3.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-bold rounded-xl shadow-lg hover:shadow-indigo-500/20 text-center transition-all duration-300 cursor-pointer"
+                  >
+                    Execute Preprocessing Pipeline
+                  </button>
+                )}
 
                 {/* Real-time progress bar & Timer */}
                 {(isProcessing || progress > 0) && (
