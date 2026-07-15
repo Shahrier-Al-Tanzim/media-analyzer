@@ -417,7 +417,7 @@ export default function Home() {
       'id', 'platform', 'timestamp', 'author', 'text', 'language', 'brand_mention',
       'sentiment', 'sentiment_score', 'topic', 'reactions', 'comments',
       'english_translation', 'severity_level', 'mentioned_competitors',
-      'engagement', 'is_competitor_comparison', 'is_high_risk'
+      'engagement', 'is_competitor_comparison', 'is_high_risk', 'competitor_sentiment'
     ];
     
     const csvRows = [headers.join(',')];
@@ -592,22 +592,37 @@ export default function Home() {
   let countRechargeTakaPayPositive = 0;
   let countRechargeTakaPayTotal = 0;
 
+  let countChargesNgoodPayPositive = 0;
+  let countChargesNgoodPayTotal = 0;
+  let countChargesTakaPayPositive = 0;
+  let countChargesTakaPayTotal = 0;
+
   filteredRecordsAnalytics.forEach(r => {
     const textLower = r.text.toLowerCase();
     const hasNgoodPay = textLower.includes('ngoodpay');
+    // Assume TakaPay is mentioned if explicitly flagged, or if the text has TakaPay, or if it is a general post (not competitor-only)
+    const hasTakaPay = textLower.includes('takapay') || r.brand_mention === true || r.brand_mention === 'true' || !hasNgoodPay;
     
     const isTakaPayPositive = r.sentiment === 'positive';
     
-    const isNgoodPayPositive = r.competitor_sentiment !== undefined && r.competitor_sentiment !== null
-      ? r.competitor_sentiment === 'positive'
-      : r.sentiment === 'negative'; // Legacy fallback
+    // Independent competitor sentiment calculation with legacy text fallback
+    let isNgoodPayPositive = r.competitor_sentiment === 'positive';
+    if (r.competitor_sentiment === undefined || r.competitor_sentiment === null) {
+      const transLower = (r.english_translation || '').toLowerCase();
+      const hasPositiveWord = textLower.includes('valo') || textLower.includes('bhala') || transLower.includes('good') || transLower.includes('great') || transLower.includes('fast') || transLower.includes('smooth') || transLower.includes('awesome') || transLower.includes('impressed') || transLower.includes('better') || transLower.includes('best') || transLower.includes('praise');
+      const hasNegativeWord = textLower.includes('kharap') || textLower.includes('pending') || transLower.includes('bad') || transLower.includes('slow') || transLower.includes('worst') || transLower.includes('charge') || transLower.includes('robbery') || transLower.includes('fee');
+      if (hasPositiveWord && !hasNegativeWord) {
+        isNgoodPayPositive = true;
+      }
+    }
 
     // 1. App Speed
     if (textLower.includes('speed') || textLower.includes('fast') || textLower.includes('slow') || textLower.includes('pending') || textLower.includes('atke')) {
       if (hasNgoodPay) {
         countSpeedNgoodPayTotal++;
         if (isNgoodPayPositive) countSpeedNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countSpeedTakaPayTotal++;
         if (isTakaPayPositive) countSpeedTakaPayPositive++;
       }
@@ -617,7 +632,8 @@ export default function Home() {
       if (hasNgoodPay) {
         countAgentNgoodPayTotal++;
         if (isNgoodPayPositive) countAgentNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countAgentTakaPayTotal++;
         if (isTakaPayPositive) countAgentTakaPayPositive++;
       }
@@ -627,7 +643,8 @@ export default function Home() {
       if (hasNgoodPay) {
         countCashbackNgoodPayTotal++;
         if (isNgoodPayPositive) countCashbackNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countCashbackTakaPayTotal++;
         if (isTakaPayPositive) countCashbackTakaPayPositive++;
       }
@@ -637,23 +654,30 @@ export default function Home() {
       if (hasNgoodPay) {
         countRechargeNgoodPayTotal++;
         if (isNgoodPayPositive) countRechargeNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countRechargeTakaPayTotal++;
         if (isTakaPayPositive) countRechargeTakaPayPositive++;
+      }
+    }
+    // 5. Charges & Fees
+    if (textLower.includes('fee') || textLower.includes('charge') || textLower.includes('cost') || textLower.includes('limit') || textLower.includes('expensive')) {
+      if (hasNgoodPay) {
+        countChargesNgoodPayTotal++;
+        if (isNgoodPayPositive) countChargesNgoodPayPositive++;
+      }
+      if (hasTakaPay) {
+        countChargesTakaPayTotal++;
+        if (isTakaPayPositive) countChargesTakaPayPositive++;
       }
     }
   });
 
   const competitorComparisonData = [
     { 
-      name: 'App Speed', 
-      'TakaPay (Strength)': countSpeedTakaPayTotal > 0 ? Math.round((countSpeedTakaPayPositive / countSpeedTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countSpeedNgoodPayTotal > 0 ? Math.round((countSpeedNgoodPayPositive / countSpeedNgoodPayTotal) * 100) : 0 
-    },
-    { 
-      name: 'Agent Network', 
-      'TakaPay (Strength)': countAgentTakaPayTotal > 0 ? Math.round((countAgentTakaPayPositive / countAgentTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countAgentNgoodPayTotal > 0 ? Math.round((countAgentNgoodPayPositive / countAgentNgoodPayTotal) * 100) : 0 
+      name: 'Charges & Fees', 
+      'TakaPay (Strength)': countChargesTakaPayTotal > 0 ? Math.round((countChargesTakaPayPositive / countChargesTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countChargesNgoodPayTotal > 0 ? Math.round((countChargesNgoodPayPositive / countChargesNgoodPayTotal) * 100) : 0 
     },
     { 
       name: 'Cashback Offers', 
@@ -664,6 +688,16 @@ export default function Home() {
       name: 'Recharges & Bills', 
       'TakaPay (Strength)': countRechargeTakaPayTotal > 0 ? Math.round((countRechargeTakaPayPositive / countRechargeTakaPayTotal) * 100) : 0, 
       'NgoodPay': countRechargeNgoodPayTotal > 0 ? Math.round((countRechargeNgoodPayPositive / countRechargeNgoodPayTotal) * 100) : 0 
+    },
+    { 
+      name: 'Agent Network', 
+      'TakaPay (Strength)': countAgentTakaPayTotal > 0 ? Math.round((countAgentTakaPayPositive / countAgentTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countAgentNgoodPayTotal > 0 ? Math.round((countAgentNgoodPayPositive / countAgentNgoodPayTotal) * 100) : 0 
+    },
+    { 
+      name: 'App Speed', 
+      'TakaPay (Strength)': countSpeedTakaPayTotal > 0 ? Math.round((countSpeedTakaPayPositive / countSpeedTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countSpeedNgoodPayTotal > 0 ? Math.round((countSpeedNgoodPayPositive / countSpeedNgoodPayTotal) * 100) : 0 
     }
   ];
 
@@ -680,7 +714,11 @@ export default function Home() {
     if (r.competitor_sentiment !== undefined && r.competitor_sentiment !== null) {
       return r.competitor_sentiment === 'positive';
     }
-    return r.sentiment === 'negative';
+    const textLower = r.text.toLowerCase();
+    const transLower = (r.english_translation || '').toLowerCase();
+    const hasPositiveWord = textLower.includes('valo') || textLower.includes('bhala') || transLower.includes('good') || transLower.includes('great') || transLower.includes('fast') || transLower.includes('smooth') || transLower.includes('awesome') || transLower.includes('impressed') || transLower.includes('better') || transLower.includes('best') || transLower.includes('praise');
+    const hasNegativeWord = textLower.includes('kharap') || textLower.includes('pending') || transLower.includes('bad') || transLower.includes('slow') || transLower.includes('worst') || transLower.includes('charge') || transLower.includes('robbery') || transLower.includes('fee');
+    return hasPositiveWord && !hasNegativeWord;
   }).length;
   const countTakaPayPositive = competitorPosts.filter(r => r.sentiment === 'positive').length;
 
