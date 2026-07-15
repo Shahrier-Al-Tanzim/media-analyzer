@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   ResponsiveContainer, 
   PieChart, 
@@ -37,6 +37,30 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+// Custom Recharts Legend Renderer to enforce "Positive -> Neutral -> Negative" order
+const renderCustomLegend = (props) => {
+  const { payload } = props;
+  if (!payload) return null;
+  
+  const order = { 'Positive': 1, 'Neutral': 2, 'Negative': 3 };
+  const sortedPayload = [...payload].sort((a, b) => {
+    const valA = a.value || '';
+    const valB = b.value || '';
+    return (order[valA] || 99) - (order[valB] || 99);
+  });
+
+  return (
+    <div className="flex justify-center gap-4 mt-3 text-[11px] font-semibold text-gray-400">
+      {sortedPayload.map((entry, index) => (
+        <div key={`item-${index}`} className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+          <span>{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function Home() {
   // Navigation: starts on executive dashboard welcome state
   const [activeTab, setActiveTab] = useState("analytics"); // "analytics" | "explorer" | "pipeline"
@@ -72,6 +96,14 @@ export default function Home() {
   const itemsPerPage = 8;
 
   const fileInputRef = useRef(null);
+  const logContainerRef = useRef(null);
+
+  // Auto scroll logs console to bottom
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [statusLogs]);
 
   // File Upload Handlers
   const handleDragOver = (e) => {
@@ -134,8 +166,8 @@ export default function Home() {
               comments,
               mentioned_competitors,
               engagement: r.engagement !== undefined ? parseInt(r.engagement, 10) : (reactions + comments),
-              is_competitor_comparison: r.is_competitor_comparison !== undefined ? !!r.is_competitor_comparison : (mentioned_competitors.length > 0),
-              is_high_risk: r.is_high_risk !== undefined ? !!r.is_high_risk : (r.sentiment === 'negative' && (reactions + comments) > 100),
+              is_competitor_comparison: r.is_competitor_comparison !== undefined ? (r.is_competitor_comparison === true || r.is_competitor_comparison === 'true' || r.is_competitor_comparison === 'TRUE') : (mentioned_competitors.length > 0),
+              is_high_risk: r.is_high_risk !== undefined ? (r.is_high_risk === true || r.is_high_risk === 'true' || r.is_high_risk === 'TRUE') : (r.sentiment === 'negative' && (reactions + comments) > 100),
               competitor_sentiment: r.competitor_sentiment !== undefined ? r.competitor_sentiment : null
             };
           });
@@ -233,7 +265,7 @@ export default function Home() {
         // Type casting
         if (header === 'id' || header === 'reactions' || header === 'comments' || header === 'sentiment_score') {
           obj[header] = parseInt(val) || 0;
-        } else if (header === 'brand_mention') {
+        } else if (header === 'brand_mention' || header === 'is_high_risk' || header === 'is_competitor_comparison') {
           obj[header] = val.toLowerCase() === 'true';
         } else {
           obj[header] = val;
@@ -551,6 +583,7 @@ export default function Home() {
   });
 
   const topicChartData = Object.values(topicBreakdownMap)
+    .filter(t => t.topic !== 'competitor')
     .sort((a, b) => b.total - a.total)
     .slice(0, 8); // Top 8 topics to prevent overcrowding
 
@@ -568,7 +601,11 @@ export default function Home() {
     name: p.name,
     'Positive': p.total > 0 ? Math.round((p.positive / p.total) * 100) : 0,
     'Neutral': p.total > 0 ? Math.round((p.neutral / p.total) * 100) : 0,
-    'Negative': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0
+    'Negative': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0,
+    positiveCount: p.positive,
+    neutralCount: p.neutral,
+    negativeCount: p.negative,
+    totalCount: p.total
   })).sort((a, b) => b['Negative'] - a['Negative']); // Keep sorted by highest negativity concentration first
 
   // 8. TakaPay vs NgoodPay strengths/weaknesses grouped bar chart (Positive sentiment percentage)
@@ -676,28 +713,48 @@ export default function Home() {
   const competitorComparisonData = [
     { 
       name: 'Charges & Fees', 
-      'TakaPay (Strength)': countChargesTakaPayTotal > 0 ? Math.round((countChargesTakaPayPositive / countChargesTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countChargesNgoodPayTotal > 0 ? Math.round((countChargesNgoodPayPositive / countChargesNgoodPayTotal) * 100) : 0 
+      'TakaPay': countChargesTakaPayTotal > 0 ? Math.round((countChargesTakaPayPositive / countChargesTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countChargesNgoodPayTotal > 0 ? Math.round((countChargesNgoodPayPositive / countChargesNgoodPayTotal) * 100) : 0,
+      takaPayPos: countChargesTakaPayPositive,
+      takaPayTotal: countChargesTakaPayTotal,
+      ngoodPayPos: countChargesNgoodPayPositive,
+      ngoodPayTotal: countChargesNgoodPayTotal
     },
     { 
       name: 'Cashback Offers', 
-      'TakaPay (Strength)': countCashbackTakaPayTotal > 0 ? Math.round((countCashbackTakaPayPositive / countCashbackTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countCashbackNgoodPayTotal > 0 ? Math.round((countCashbackNgoodPayPositive / countCashbackNgoodPayTotal) * 100) : 0 
+      'TakaPay': countCashbackTakaPayTotal > 0 ? Math.round((countCashbackTakaPayPositive / countCashbackTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countCashbackNgoodPayTotal > 0 ? Math.round((countCashbackNgoodPayPositive / countCashbackNgoodPayTotal) * 100) : 0,
+      takaPayPos: countCashbackTakaPayPositive,
+      takaPayTotal: countCashbackTakaPayTotal,
+      ngoodPayPos: countCashbackNgoodPayPositive,
+      ngoodPayTotal: countCashbackNgoodPayTotal
     },
     { 
       name: 'Recharges & Bills', 
-      'TakaPay (Strength)': countRechargeTakaPayTotal > 0 ? Math.round((countRechargeTakaPayPositive / countRechargeTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countRechargeNgoodPayTotal > 0 ? Math.round((countRechargeNgoodPayPositive / countRechargeNgoodPayTotal) * 100) : 0 
+      'TakaPay': countRechargeTakaPayTotal > 0 ? Math.round((countRechargeTakaPayPositive / countRechargeTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countRechargeNgoodPayTotal > 0 ? Math.round((countRechargeNgoodPayPositive / countRechargeNgoodPayTotal) * 100) : 0,
+      takaPayPos: countRechargeTakaPayPositive,
+      takaPayTotal: countRechargeTakaPayTotal,
+      ngoodPayPos: countRechargeNgoodPayPositive,
+      ngoodPayTotal: countRechargeNgoodPayTotal
     },
     { 
       name: 'Agent Network', 
-      'TakaPay (Strength)': countAgentTakaPayTotal > 0 ? Math.round((countAgentTakaPayPositive / countAgentTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countAgentNgoodPayTotal > 0 ? Math.round((countAgentNgoodPayPositive / countAgentNgoodPayTotal) * 100) : 0 
+      'TakaPay': countAgentTakaPayTotal > 0 ? Math.round((countAgentTakaPayPositive / countAgentTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countAgentNgoodPayTotal > 0 ? Math.round((countAgentNgoodPayPositive / countAgentNgoodPayTotal) * 100) : 0,
+      takaPayPos: countAgentTakaPayPositive,
+      takaPayTotal: countAgentTakaPayTotal,
+      ngoodPayPos: countAgentNgoodPayPositive,
+      ngoodPayTotal: countAgentNgoodPayTotal
     },
     { 
       name: 'App Speed', 
-      'TakaPay (Strength)': countSpeedTakaPayTotal > 0 ? Math.round((countSpeedTakaPayPositive / countSpeedTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countSpeedNgoodPayTotal > 0 ? Math.round((countSpeedNgoodPayPositive / countSpeedNgoodPayTotal) * 100) : 0 
+      'TakaPay': countSpeedTakaPayTotal > 0 ? Math.round((countSpeedTakaPayPositive / countSpeedTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countSpeedNgoodPayTotal > 0 ? Math.round((countSpeedNgoodPayPositive / countSpeedNgoodPayTotal) * 100) : 0,
+      takaPayPos: countSpeedTakaPayPositive,
+      takaPayTotal: countSpeedTakaPayTotal,
+      ngoodPayPos: countSpeedNgoodPayPositive,
+      ngoodPayTotal: countSpeedNgoodPayTotal
     }
   ];
 
@@ -722,12 +779,21 @@ export default function Home() {
   }).length;
   const countTakaPayPositive = competitorPosts.filter(r => r.sentiment === 'positive').length;
 
-  const ngoodPayFavorabilityRate = totalCompetitorMentions > 0
-    ? Math.round((countNgoodPayPositive / totalCompetitorMentions) * 100)
+  const competitorPostsWithNgood = competitorPosts.filter(r => r.text.toLowerCase().includes('ngoodpay'));
+  const competitorPostsWithTaka = competitorPosts.filter(r => {
+    const textLower = r.text.toLowerCase();
+    return textLower.includes('takapay') || r.brand_mention === true || r.brand_mention === 'true' || !textLower.includes('ngoodpay');
+  });
+
+  const totalNgoodPayMentions = competitorPostsWithNgood.length;
+  const totalTakaPayMentions = competitorPostsWithTaka.length;
+
+  const ngoodPayFavorabilityRate = totalNgoodPayMentions > 0
+    ? Math.round((countNgoodPayPositive / totalNgoodPayMentions) * 100)
     : 0;
 
-  const takaPayFavorabilityRate = totalCompetitorMentions > 0
-    ? Math.round((countTakaPayPositive / totalCompetitorMentions) * 100)
+  const takaPayFavorabilityRate = totalTakaPayMentions > 0
+    ? Math.round((countTakaPayPositive / totalTakaPayMentions) * 100)
     : 0;
 
   return (
@@ -1079,7 +1145,7 @@ export default function Home() {
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ color: '#fff', fontSize: '12px' }}
                       />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#9ca3af' }} />
+                      <Legend content={renderCustomLegend} />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Center text of Donut */}
@@ -1109,7 +1175,7 @@ export default function Home() {
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ fontSize: '11px' }}
                       />
-                      <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                      <Legend content={renderCustomLegend} />
                       <Bar dataKey="positive" stackId="a" fill="#10b981" name="Positive" />
                       <Bar dataKey="neutral" stackId="a" fill="#6b7280" name="Neutral" />
                       <Bar dataKey="negative" stackId="a" fill="#ef4444" name="Negative" />
@@ -1169,9 +1235,22 @@ export default function Home() {
                       <Tooltip 
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ fontSize: '11px' }}
+                        formatter={(value, name, props) => {
+                          const { payload } = props;
+                          let pos = 0;
+                          let total = 0;
+                          if (name === 'TakaPay') {
+                            pos = payload.takaPayPos;
+                            total = payload.takaPayTotal;
+                          } else {
+                            pos = payload.ngoodPayPos;
+                            total = payload.ngoodPayTotal;
+                          }
+                          return [`${value}% (${pos} of ${total} posts)`, name];
+                        }}
                       />
                       <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                      <Bar dataKey="TakaPay (Strength)" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="TakaPay" fill="#6366f1" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="NgoodPay" fill="#a855f7" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -1201,9 +1280,16 @@ export default function Home() {
                       <Tooltip 
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ fontSize: '11px' }}
-                        formatter={(value) => `${value}%`}
+                        formatter={(value, name, props) => {
+                          const { payload } = props;
+                          let count = 0;
+                          if (name === 'Positive') count = payload.positiveCount;
+                          else if (name === 'Neutral') count = payload.neutralCount;
+                          else if (name === 'Negative') count = payload.negativeCount;
+                          return [`${value}% (${count} of ${payload.totalCount} posts)`, name];
+                        }}
                       />
-                      <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                      <Legend content={renderCustomLegend} />
                       <Bar dataKey="Positive" fill="#10b981" radius={[3, 3, 0, 0]} />
                       <Bar dataKey="Neutral" fill="#6b7280" radius={[3, 3, 0, 0]} />
                       <Bar dataKey="Negative" fill="#ef4444" radius={[3, 3, 0, 0]} />
@@ -1476,7 +1562,7 @@ export default function Home() {
                     className="glass-input w-full px-3 py-2 text-xs rounded-xl bg-indigo-950/20 border border-indigo-500/20 cursor-pointer focus:outline-none"
                   >
                     <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Fast)</option>
-                    <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Very Fast)</option>
+                    <option value="openai/gpt-oss-120b">GPT OSS 120B (High Quality)</option>
                   </select>
                 </div>
 
@@ -1547,7 +1633,7 @@ export default function Home() {
                 <span className={`w-2 h-2 rounded-full ${isProcessing ? 'bg-indigo-400 animate-pulse' : 'bg-emerald-400'}`} />
                 Pipeline Live Logs
               </h3>
-              <div className="bg-black/40 border border-white/5 rounded-xl p-4 font-mono text-[11px] text-gray-300 flex-1 overflow-y-auto flex flex-col gap-1.5">
+              <div ref={logContainerRef} className="bg-black/40 border border-white/5 rounded-xl p-4 font-mono text-[11px] text-gray-300 h-[280px] overflow-y-auto flex flex-col gap-1.5">
                 {statusLogs.map((log, index) => (
                   <div key={index} className="border-l border-white/10 pl-2">
                     <span className="text-indigo-400 mr-1.5">$</span>
