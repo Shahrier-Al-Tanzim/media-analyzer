@@ -82,21 +82,89 @@ export default function Home() {
   const [cleanedRecords, setCleanedRecords] = useState([]);
   const [processingMetrics, setProcessingMetrics] = useState(null);
   
-  // Table View & Filtering state
+  // Analytics Dashboard Filtering state
   const [analyticsSearchTerm, setAnalyticsSearchTerm] = useState("");
+  const [analyticsPlatformFilter, setAnalyticsPlatformFilter] = useState("all");
+  const [analyticsSentimentFilter, setAnalyticsSentimentFilter] = useState("all");
+  const [analyticsTopicFilter, setAnalyticsTopicFilter] = useState("all");
+  const [analyticsStartDateFilter, setAnalyticsStartDateFilter] = useState("2026-06-01");
+  const [analyticsEndDateFilter, setAnalyticsEndDateFilter] = useState("2026-06-30");
+
+  // Data Explorer Filtering state
   const [explorerSearchTerm, setExplorerSearchTerm] = useState("");
-  const [sentimentFilter, setSentimentFilter] = useState("all");
-  const [severityFilter, setSeverityFilter] = useState("all");
-  const [riskFilter, setRiskFilter] = useState("all");
-  const [platformFilter, setPlatformFilter] = useState("all");
-  const [topicFilter, setTopicFilter] = useState("all");
-  const [startDateFilter, setStartDateFilter] = useState("2026-06-01");
-  const [endDateFilter, setEndDateFilter] = useState("2026-06-30");
+  const [explorerSentimentFilter, setExplorerSentimentFilter] = useState("all");
+  const [explorerTopicFilter, setExplorerTopicFilter] = useState("all");
+  const [explorerSeverityFilter, setExplorerSeverityFilter] = useState("all");
+  const [explorerRiskFilter, setExplorerRiskFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
   const fileInputRef = useRef(null);
   const logContainerRef = useRef(null);
+  const hasLoadedRef = useRef(false);
+
+  // Load state from localStorage on page mount
+  useEffect(() => {
+    try {
+      const storedFileName = localStorage.getItem('media_analyzer_file_name');
+      const storedFileType = localStorage.getItem('media_analyzer_file_type');
+      const storedRawCount = localStorage.getItem('media_analyzer_raw_count');
+      const storedDeduplicatedCount = localStorage.getItem('media_analyzer_deduplicated_count');
+      const storedFinalTime = localStorage.getItem('media_analyzer_final_time');
+      
+      const storedFileData = localStorage.getItem('media_analyzer_file_data');
+      const storedCleanedRecords = localStorage.getItem('media_analyzer_cleaned_records');
+      const storedMetrics = localStorage.getItem('media_analyzer_metrics');
+      const storedLogs = localStorage.getItem('media_analyzer_logs');
+
+      if (storedFileName) setFileName(storedFileName);
+      if (storedFileType) setFileType(storedFileType);
+      if (storedRawCount) setRawRecordsCount(parseInt(storedRawCount, 10));
+      if (storedDeduplicatedCount) setDeduplicatedCount(parseInt(storedDeduplicatedCount, 10));
+      if (storedFinalTime) setFinalTime(parseInt(storedFinalTime, 10));
+
+      if (storedFileData) setFileData(JSON.parse(storedFileData));
+      if (storedCleanedRecords) setCleanedRecords(JSON.parse(storedCleanedRecords));
+      if (storedMetrics) setProcessingMetrics(JSON.parse(storedMetrics));
+      if (storedLogs) setStatusLogs(JSON.parse(storedLogs));
+    } catch (e) {
+      console.error('Error loading persisted state:', e);
+    } finally {
+      hasLoadedRef.current = true;
+    }
+  }, []);
+
+  // Save state to localStorage on changes
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    
+    if (fileName) {
+      localStorage.setItem('media_analyzer_file_name', fileName);
+      localStorage.setItem('media_analyzer_file_type', fileType);
+      localStorage.setItem('media_analyzer_raw_count', rawRecordsCount.toString());
+      localStorage.setItem('media_analyzer_deduplicated_count', deduplicatedCount.toString());
+      if (finalTime !== null) {
+        localStorage.setItem('media_analyzer_final_time', finalTime.toString());
+      } else {
+        localStorage.removeItem('media_analyzer_final_time');
+      }
+      
+      if (fileData) localStorage.setItem('media_analyzer_file_data', JSON.stringify(fileData));
+      if (cleanedRecords) localStorage.setItem('media_analyzer_cleaned_records', JSON.stringify(cleanedRecords));
+      if (processingMetrics) localStorage.setItem('media_analyzer_metrics', JSON.stringify(processingMetrics));
+      if (statusLogs) localStorage.setItem('media_analyzer_logs', JSON.stringify(statusLogs));
+    } else {
+      localStorage.removeItem('media_analyzer_file_name');
+      localStorage.removeItem('media_analyzer_file_type');
+      localStorage.removeItem('media_analyzer_raw_count');
+      localStorage.removeItem('media_analyzer_deduplicated_count');
+      localStorage.removeItem('media_analyzer_final_time');
+      localStorage.removeItem('media_analyzer_file_data');
+      localStorage.removeItem('media_analyzer_cleaned_records');
+      localStorage.removeItem('media_analyzer_metrics');
+      localStorage.removeItem('media_analyzer_logs');
+    }
+  }, [fileName, fileType, rawRecordsCount, deduplicatedCount, finalTime, fileData, cleanedRecords, processingMetrics, statusLogs]);
 
   // Auto scroll logs console to bottom
   useEffect(() => {
@@ -499,19 +567,12 @@ export default function Home() {
                           r.english_translation?.toLowerCase().includes(explorerSearchTerm.toLowerCase()) ||
                           r.author.toLowerCase().includes(explorerSearchTerm.toLowerCase());
     
-    const matchesSentiment = sentimentFilter === 'all' || r.sentiment === sentimentFilter;
-    const matchesSeverity = severityFilter === 'all' || r.severity_level === severityFilter;
-    const matchesRisk = riskFilter === 'all' || (riskFilter === 'high_risk' && r.is_high_risk);
-    const matchesPlatform = platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
-    const matchesTopic = topicFilter === 'all' || r.topic === topicFilter;
+    const matchesSentiment = explorerSentimentFilter === 'all' || r.sentiment === explorerSentimentFilter;
+    const matchesSeverity = explorerSeverityFilter === 'all' || r.severity_level === explorerSeverityFilter;
+    const matchesRisk = explorerRiskFilter === 'all' || (explorerRiskFilter === 'high_risk' && r.is_high_risk);
+    const matchesTopic = explorerTopicFilter === 'all' || r.topic === explorerTopicFilter;
     
-    let matchesDate = true;
-    if (r.timestamp && r.timestamp.length >= 10) {
-      const rowDate = r.timestamp.substring(0, 10);
-      matchesDate = rowDate >= startDateFilter && rowDate <= endDateFilter;
-    }
-
-    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate && matchesTopic;
+    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesTopic;
   });
 
   // Filter & Search Logic for Executive Dashboard
@@ -520,19 +581,17 @@ export default function Home() {
                           r.english_translation?.toLowerCase().includes(analyticsSearchTerm.toLowerCase()) ||
                           r.author.toLowerCase().includes(analyticsSearchTerm.toLowerCase());
     
-    const matchesSentiment = sentimentFilter === 'all' || r.sentiment === sentimentFilter;
-    const matchesSeverity = severityFilter === 'all' || r.severity_level === severityFilter;
-    const matchesRisk = riskFilter === 'all' || (riskFilter === 'high_risk' && r.is_high_risk);
-    const matchesPlatform = platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
-    const matchesTopic = topicFilter === 'all' || r.topic === topicFilter;
+    const matchesSentiment = analyticsSentimentFilter === 'all' || r.sentiment === analyticsSentimentFilter;
+    const matchesPlatform = analyticsPlatformFilter === 'all' || r.platform.toLowerCase() === analyticsPlatformFilter.toLowerCase();
+    const matchesTopic = analyticsTopicFilter === 'all' || r.topic === analyticsTopicFilter;
     
     let matchesDate = true;
     if (r.timestamp && r.timestamp.length >= 10) {
       const rowDate = r.timestamp.substring(0, 10);
-      matchesDate = rowDate >= startDateFilter && rowDate <= endDateFilter;
+      matchesDate = rowDate >= analyticsStartDateFilter && rowDate <= analyticsEndDateFilter;
     }
 
-    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate && matchesTopic;
+    return matchesSearch && matchesSentiment && matchesPlatform && matchesDate && matchesTopic;
   });
 
   // Pagination Logic (Uses Explorer filtered records)
@@ -885,7 +944,7 @@ export default function Home() {
       </div>
 
       {/* Global Interactive Filters Selector */}
-      {cleanedRecords.length > 0 && activeTab !== 'pipeline' && (
+      {cleanedRecords.length > 0 && activeTab === 'analytics' && (
         <section className="glass-panel p-4 rounded-2xl flex flex-wrap gap-4 items-center bg-white/[0.02]">
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -896,8 +955,8 @@ export default function Home() {
           {/* Social Media Platform Filter */}
           <div className="flex flex-col gap-1 min-w-[130px]">
             <select 
-              value={platformFilter} 
-              onChange={(e) => { setPlatformFilter(e.target.value); setCurrentPage(1); }}
+              value={analyticsPlatformFilter} 
+              onChange={(e) => { setAnalyticsPlatformFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Social Medias</option>
@@ -914,8 +973,8 @@ export default function Home() {
           {/* Sentiment Filter */}
           <div className="flex flex-col gap-1 min-w-[120px]">
             <select 
-              value={sentimentFilter} 
-              onChange={(e) => { setSentimentFilter(e.target.value); setCurrentPage(1); }}
+              value={analyticsSentimentFilter} 
+              onChange={(e) => { setAnalyticsSentimentFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Sentiments</option>
@@ -928,8 +987,8 @@ export default function Home() {
           {/* Topic Filter */}
           <div className="flex flex-col gap-1 min-w-[130px]">
             <select 
-              value={topicFilter} 
-              onChange={(e) => { setTopicFilter(e.target.value); setCurrentPage(1); }}
+              value={analyticsTopicFilter} 
+              onChange={(e) => { setAnalyticsTopicFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Topics</option>
@@ -950,51 +1009,46 @@ export default function Home() {
             <div className="flex items-center gap-1 text-[11px]">
               <input 
                 type="date" 
-                value={startDateFilter}
+                value={analyticsStartDateFilter}
                 min="2026-06-01"
                 max="2026-06-30"
-                onChange={(e) => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setAnalyticsStartDateFilter(e.target.value); setCurrentPage(1); }}
                 className="bg-transparent text-white focus:outline-none cursor-pointer font-bold"
               />
               <span className="text-gray-500">to</span>
               <input 
                 type="date" 
-                value={endDateFilter}
+                value={analyticsEndDateFilter}
                 min="2026-06-01"
                 max="2026-06-30"
-                onChange={(e) => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setAnalyticsEndDateFilter(e.target.value); setCurrentPage(1); }}
                 className="bg-transparent text-white focus:outline-none cursor-pointer font-bold"
               />
             </div>
           </div>
 
           {/* Analytics-Only Search Bar */}
-          {activeTab === 'analytics' && (
-            <div className="relative flex items-center min-w-[200px]">
-              <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder="Search analytics..." 
-                value={analyticsSearchTerm}
-                onChange={(e) => setAnalyticsSearchTerm(e.target.value)}
-                className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full focus:outline-none"
-              />
-            </div>
-          )}
+          <div className="relative flex items-center min-w-[200px]">
+            <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            <input 
+              type="text" 
+              placeholder="Search analytics..." 
+              value={analyticsSearchTerm}
+              onChange={(e) => setAnalyticsSearchTerm(e.target.value)}
+              className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full focus:outline-none"
+            />
+          </div>
 
           {/* Reset Filters Quick Button */}
-          {(platformFilter !== 'all' || sentimentFilter !== 'all' || topicFilter !== 'all' || startDateFilter !== '2026-06-01' || endDateFilter !== '2026-06-30' || analyticsSearchTerm !== '' || explorerSearchTerm !== '') && (
+          {(analyticsPlatformFilter !== 'all' || analyticsSentimentFilter !== 'all' || analyticsTopicFilter !== 'all' || analyticsStartDateFilter !== '2026-06-01' || analyticsEndDateFilter !== '2026-06-30' || analyticsSearchTerm !== '') && (
             <button 
               onClick={() => {
-                setPlatformFilter('all');
-                setSentimentFilter('all');
-                setTopicFilter('all');
-                setStartDateFilter('2026-06-01');
-                setEndDateFilter('2026-06-30');
+                setAnalyticsPlatformFilter('all');
+                setAnalyticsSentimentFilter('all');
+                setAnalyticsTopicFilter('all');
+                setAnalyticsStartDateFilter('2026-06-01');
+                setAnalyticsEndDateFilter('2026-06-30');
                 setAnalyticsSearchTerm('');
-                setExplorerSearchTerm('');
-                setSeverityFilter('all');
-                setRiskFilter('all');
                 setCurrentPage(1);
               }}
               className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer transition-colors"
@@ -1378,8 +1432,8 @@ export default function Home() {
               />
             </div>
             <select 
-              value={sentimentFilter} 
-              onChange={(e) => { setSentimentFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerSentimentFilter} 
+              onChange={(e) => { setExplorerSentimentFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Sentiments</option>
@@ -1388,8 +1442,8 @@ export default function Home() {
               <option value="neutral">Neutral</option>
             </select>
             <select 
-              value={topicFilter} 
-              onChange={(e) => { setTopicFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerTopicFilter} 
+              onChange={(e) => { setExplorerTopicFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Topics</option>
@@ -1403,8 +1457,8 @@ export default function Home() {
               <option value="off_topic">Off-Topic</option>
             </select>
             <select 
-              value={severityFilter} 
-              onChange={(e) => { setSeverityFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerSeverityFilter} 
+              onChange={(e) => { setExplorerSeverityFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Severities</option>
@@ -1414,8 +1468,8 @@ export default function Home() {
               <option value="Low">Low</option>
             </select>
             <select 
-              value={riskFilter} 
-              onChange={(e) => { setRiskFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerRiskFilter} 
+              onChange={(e) => { setExplorerRiskFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Risks</option>
