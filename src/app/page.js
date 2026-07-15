@@ -554,22 +554,22 @@ export default function Home() {
     .sort((a, b) => b.total - a.total)
     .slice(0, 8); // Top 8 topics to prevent overcrowding
 
-  // 7. Platform Negativity Density Comparison Chart
+  // 7. Platform Sentiment Breakdown Chart (Positive, Neutral, Negative proportions)
   const platformBreakdownMap = {};
   filteredRecordsAnalytics.forEach(r => {
     if (!platformBreakdownMap[r.platform]) {
-      platformBreakdownMap[r.platform] = { name: r.platform, negative: 0, total: 0 };
+      platformBreakdownMap[r.platform] = { name: r.platform, positive: 0, neutral: 0, negative: 0, total: 0 };
     }
     platformBreakdownMap[r.platform].total += 1;
-    if (r.sentiment === 'negative') {
-      platformBreakdownMap[r.platform].negative += 1;
-    }
+    platformBreakdownMap[r.platform][r.sentiment] = (platformBreakdownMap[r.platform][r.sentiment] || 0) + 1;
   });
 
-  const platformNegativityData = Object.values(platformBreakdownMap).map(p => ({
+  const platformSentimentData = Object.values(platformBreakdownMap).map(p => ({
     name: p.name,
-    'Negative %': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0
-  })).sort((a, b) => b['Negative %'] - a['Negative %']);
+    'Positive': p.total > 0 ? Math.round((p.positive / p.total) * 100) : 0,
+    'Neutral': p.total > 0 ? Math.round((p.neutral / p.total) * 100) : 0,
+    'Negative': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0
+  })).sort((a, b) => b['Negative'] - a['Negative']); // Keep sorted by highest negativity concentration first
 
   // 8. TakaPay vs NgoodPay strengths/weaknesses grouped bar chart (Positive sentiment percentage)
   let countSpeedNgoodPayPositive = 0;
@@ -1178,21 +1178,21 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Platform Negativity Density Chart */}
+              {/* Platform Sentiment Breakdown Chart */}
               <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
                 <div>
                   <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
                     <Layers className="w-4 h-4 text-purple-400" />
-                    Social Channel Negativity Density (% Negative Sentiment)
+                    Social Channel Sentiment Breakdown (% Sentiment)
                   </h3>
                   <p className="text-[10px] text-gray-400 mb-4">
-                    Indicates which platforms contain the highest concentration of customer complaints.
+                    Visualizing the proportion of Positive, Neutral, and Negative user sentiments across each social channel.
                   </p>
                 </div>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={platformNegativityData}
+                      data={platformSentimentData}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -1203,7 +1203,10 @@ export default function Home() {
                         itemStyle={{ fontSize: '11px' }}
                         formatter={(value) => `${value}%`}
                       />
-                      <Bar dataKey="Negative %" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                      <Bar dataKey="Positive" fill="#10b981" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Neutral" fill="#6b7280" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Negative" fill="#ef4444" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
