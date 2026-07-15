@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   ResponsiveContainer, 
   PieChart, 
@@ -37,6 +37,30 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+// Custom Recharts Legend Renderer to enforce "Positive -> Neutral -> Negative" order
+const renderCustomLegend = (props) => {
+  const { payload } = props;
+  if (!payload) return null;
+  
+  const order = { 'Positive': 1, 'Neutral': 2, 'Negative': 3 };
+  const sortedPayload = [...payload].sort((a, b) => {
+    const valA = a.value || '';
+    const valB = b.value || '';
+    return (order[valA] || 99) - (order[valB] || 99);
+  });
+
+  return (
+    <div className="flex justify-center gap-4 mt-3 text-[11px] font-semibold text-gray-400">
+      {sortedPayload.map((entry, index) => (
+        <div key={`item-${index}`} className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
+          <span>{entry.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function Home() {
   // Navigation: starts on executive dashboard welcome state
   const [activeTab, setActiveTab] = useState("analytics"); // "analytics" | "explorer" | "pipeline"
@@ -58,20 +82,96 @@ export default function Home() {
   const [cleanedRecords, setCleanedRecords] = useState([]);
   const [processingMetrics, setProcessingMetrics] = useState(null);
   
-  // Table View & Filtering state
+  // Analytics Dashboard Filtering state
   const [analyticsSearchTerm, setAnalyticsSearchTerm] = useState("");
+  const [analyticsPlatformFilter, setAnalyticsPlatformFilter] = useState("all");
+  const [analyticsSentimentFilter, setAnalyticsSentimentFilter] = useState("all");
+  const [analyticsTopicFilter, setAnalyticsTopicFilter] = useState("all");
+  const [analyticsStartDateFilter, setAnalyticsStartDateFilter] = useState("2026-06-01");
+  const [analyticsEndDateFilter, setAnalyticsEndDateFilter] = useState("2026-06-30");
+
+  // Data Explorer Filtering state
   const [explorerSearchTerm, setExplorerSearchTerm] = useState("");
-  const [sentimentFilter, setSentimentFilter] = useState("all");
-  const [severityFilter, setSeverityFilter] = useState("all");
-  const [riskFilter, setRiskFilter] = useState("all");
-  const [platformFilter, setPlatformFilter] = useState("all");
-  const [topicFilter, setTopicFilter] = useState("all");
-  const [startDateFilter, setStartDateFilter] = useState("2026-06-01");
-  const [endDateFilter, setEndDateFilter] = useState("2026-06-30");
+  const [explorerSentimentFilter, setExplorerSentimentFilter] = useState("all");
+  const [explorerTopicFilter, setExplorerTopicFilter] = useState("all");
+  const [explorerSeverityFilter, setExplorerSeverityFilter] = useState("all");
+  const [explorerRiskFilter, setExplorerRiskFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
   const fileInputRef = useRef(null);
+  const logContainerRef = useRef(null);
+  const hasLoadedRef = useRef(false);
+
+  // Load state from localStorage on page mount
+  useEffect(() => {
+    try {
+      const storedFileName = localStorage.getItem('media_analyzer_file_name');
+      const storedFileType = localStorage.getItem('media_analyzer_file_type');
+      const storedRawCount = localStorage.getItem('media_analyzer_raw_count');
+      const storedDeduplicatedCount = localStorage.getItem('media_analyzer_deduplicated_count');
+      const storedFinalTime = localStorage.getItem('media_analyzer_final_time');
+      
+      const storedFileData = localStorage.getItem('media_analyzer_file_data');
+      const storedCleanedRecords = localStorage.getItem('media_analyzer_cleaned_records');
+      const storedMetrics = localStorage.getItem('media_analyzer_metrics');
+      const storedLogs = localStorage.getItem('media_analyzer_logs');
+
+      if (storedFileName) setFileName(storedFileName);
+      if (storedFileType) setFileType(storedFileType);
+      if (storedRawCount) setRawRecordsCount(parseInt(storedRawCount, 10));
+      if (storedDeduplicatedCount) setDeduplicatedCount(parseInt(storedDeduplicatedCount, 10));
+      if (storedFinalTime) setFinalTime(parseInt(storedFinalTime, 10));
+
+      if (storedFileData) setFileData(JSON.parse(storedFileData));
+      if (storedCleanedRecords) setCleanedRecords(JSON.parse(storedCleanedRecords));
+      if (storedMetrics) setProcessingMetrics(JSON.parse(storedMetrics));
+      if (storedLogs) setStatusLogs(JSON.parse(storedLogs));
+    } catch (e) {
+      console.error('Error loading persisted state:', e);
+    } finally {
+      hasLoadedRef.current = true;
+    }
+  }, []);
+
+  // Save state to localStorage on changes
+  useEffect(() => {
+    if (!hasLoadedRef.current) return;
+    
+    if (fileName) {
+      localStorage.setItem('media_analyzer_file_name', fileName);
+      localStorage.setItem('media_analyzer_file_type', fileType);
+      localStorage.setItem('media_analyzer_raw_count', rawRecordsCount.toString());
+      localStorage.setItem('media_analyzer_deduplicated_count', deduplicatedCount.toString());
+      if (finalTime !== null) {
+        localStorage.setItem('media_analyzer_final_time', finalTime.toString());
+      } else {
+        localStorage.removeItem('media_analyzer_final_time');
+      }
+      
+      if (fileData) localStorage.setItem('media_analyzer_file_data', JSON.stringify(fileData));
+      if (cleanedRecords) localStorage.setItem('media_analyzer_cleaned_records', JSON.stringify(cleanedRecords));
+      if (processingMetrics) localStorage.setItem('media_analyzer_metrics', JSON.stringify(processingMetrics));
+      if (statusLogs) localStorage.setItem('media_analyzer_logs', JSON.stringify(statusLogs));
+    } else {
+      localStorage.removeItem('media_analyzer_file_name');
+      localStorage.removeItem('media_analyzer_file_type');
+      localStorage.removeItem('media_analyzer_raw_count');
+      localStorage.removeItem('media_analyzer_deduplicated_count');
+      localStorage.removeItem('media_analyzer_final_time');
+      localStorage.removeItem('media_analyzer_file_data');
+      localStorage.removeItem('media_analyzer_cleaned_records');
+      localStorage.removeItem('media_analyzer_metrics');
+      localStorage.removeItem('media_analyzer_logs');
+    }
+  }, [fileName, fileType, rawRecordsCount, deduplicatedCount, finalTime, fileData, cleanedRecords, processingMetrics, statusLogs]);
+
+  // Auto scroll logs console to bottom
+  useEffect(() => {
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    }
+  }, [statusLogs]);
 
   // File Upload Handlers
   const handleDragOver = (e) => {
@@ -134,8 +234,8 @@ export default function Home() {
               comments,
               mentioned_competitors,
               engagement: r.engagement !== undefined ? parseInt(r.engagement, 10) : (reactions + comments),
-              is_competitor_comparison: r.is_competitor_comparison !== undefined ? !!r.is_competitor_comparison : (mentioned_competitors.length > 0),
-              is_high_risk: r.is_high_risk !== undefined ? !!r.is_high_risk : (r.sentiment === 'negative' && (reactions + comments) > 100),
+              is_competitor_comparison: r.is_competitor_comparison !== undefined ? (r.is_competitor_comparison === true || r.is_competitor_comparison === 'true' || r.is_competitor_comparison === 'TRUE') : (mentioned_competitors.length > 0),
+              is_high_risk: r.is_high_risk !== undefined ? (r.is_high_risk === true || r.is_high_risk === 'true' || r.is_high_risk === 'TRUE') : (r.sentiment === 'negative' && (reactions + comments) > 100),
               competitor_sentiment: r.competitor_sentiment !== undefined ? r.competitor_sentiment : null
             };
           });
@@ -233,7 +333,7 @@ export default function Home() {
         // Type casting
         if (header === 'id' || header === 'reactions' || header === 'comments' || header === 'sentiment_score') {
           obj[header] = parseInt(val) || 0;
-        } else if (header === 'brand_mention') {
+        } else if (header === 'brand_mention' || header === 'is_high_risk' || header === 'is_competitor_comparison') {
           obj[header] = val.toLowerCase() === 'true';
         } else {
           obj[header] = val;
@@ -417,7 +517,7 @@ export default function Home() {
       'id', 'platform', 'timestamp', 'author', 'text', 'language', 'brand_mention',
       'sentiment', 'sentiment_score', 'topic', 'reactions', 'comments',
       'english_translation', 'severity_level', 'mentioned_competitors',
-      'engagement', 'is_competitor_comparison', 'is_high_risk'
+      'engagement', 'is_competitor_comparison', 'is_high_risk', 'competitor_sentiment'
     ];
     
     const csvRows = [headers.join(',')];
@@ -467,19 +567,12 @@ export default function Home() {
                           r.english_translation?.toLowerCase().includes(explorerSearchTerm.toLowerCase()) ||
                           r.author.toLowerCase().includes(explorerSearchTerm.toLowerCase());
     
-    const matchesSentiment = sentimentFilter === 'all' || r.sentiment === sentimentFilter;
-    const matchesSeverity = severityFilter === 'all' || r.severity_level === severityFilter;
-    const matchesRisk = riskFilter === 'all' || (riskFilter === 'high_risk' && r.is_high_risk);
-    const matchesPlatform = platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
-    const matchesTopic = topicFilter === 'all' || r.topic === topicFilter;
+    const matchesSentiment = explorerSentimentFilter === 'all' || r.sentiment === explorerSentimentFilter;
+    const matchesSeverity = explorerSeverityFilter === 'all' || r.severity_level === explorerSeverityFilter;
+    const matchesRisk = explorerRiskFilter === 'all' || (explorerRiskFilter === 'high_risk' && r.is_high_risk);
+    const matchesTopic = explorerTopicFilter === 'all' || r.topic === explorerTopicFilter;
     
-    let matchesDate = true;
-    if (r.timestamp && r.timestamp.length >= 10) {
-      const rowDate = r.timestamp.substring(0, 10);
-      matchesDate = rowDate >= startDateFilter && rowDate <= endDateFilter;
-    }
-
-    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate && matchesTopic;
+    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesTopic;
   });
 
   // Filter & Search Logic for Executive Dashboard
@@ -488,19 +581,17 @@ export default function Home() {
                           r.english_translation?.toLowerCase().includes(analyticsSearchTerm.toLowerCase()) ||
                           r.author.toLowerCase().includes(analyticsSearchTerm.toLowerCase());
     
-    const matchesSentiment = sentimentFilter === 'all' || r.sentiment === sentimentFilter;
-    const matchesSeverity = severityFilter === 'all' || r.severity_level === severityFilter;
-    const matchesRisk = riskFilter === 'all' || (riskFilter === 'high_risk' && r.is_high_risk);
-    const matchesPlatform = platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
-    const matchesTopic = topicFilter === 'all' || r.topic === topicFilter;
+    const matchesSentiment = analyticsSentimentFilter === 'all' || r.sentiment === analyticsSentimentFilter;
+    const matchesPlatform = analyticsPlatformFilter === 'all' || r.platform.toLowerCase() === analyticsPlatformFilter.toLowerCase();
+    const matchesTopic = analyticsTopicFilter === 'all' || r.topic === analyticsTopicFilter;
     
     let matchesDate = true;
     if (r.timestamp && r.timestamp.length >= 10) {
       const rowDate = r.timestamp.substring(0, 10);
-      matchesDate = rowDate >= startDateFilter && rowDate <= endDateFilter;
+      matchesDate = rowDate >= analyticsStartDateFilter && rowDate <= analyticsEndDateFilter;
     }
 
-    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate && matchesTopic;
+    return matchesSearch && matchesSentiment && matchesPlatform && matchesDate && matchesTopic;
   });
 
   // Pagination Logic (Uses Explorer filtered records)
@@ -551,25 +642,30 @@ export default function Home() {
   });
 
   const topicChartData = Object.values(topicBreakdownMap)
+    .filter(t => t.topic !== 'competitor')
     .sort((a, b) => b.total - a.total)
     .slice(0, 8); // Top 8 topics to prevent overcrowding
 
-  // 7. Platform Negativity Density Comparison Chart
+  // 7. Platform Sentiment Breakdown Chart (Positive, Neutral, Negative proportions)
   const platformBreakdownMap = {};
   filteredRecordsAnalytics.forEach(r => {
     if (!platformBreakdownMap[r.platform]) {
-      platformBreakdownMap[r.platform] = { name: r.platform, negative: 0, total: 0 };
+      platformBreakdownMap[r.platform] = { name: r.platform, positive: 0, neutral: 0, negative: 0, total: 0 };
     }
     platformBreakdownMap[r.platform].total += 1;
-    if (r.sentiment === 'negative') {
-      platformBreakdownMap[r.platform].negative += 1;
-    }
+    platformBreakdownMap[r.platform][r.sentiment] = (platformBreakdownMap[r.platform][r.sentiment] || 0) + 1;
   });
 
-  const platformNegativityData = Object.values(platformBreakdownMap).map(p => ({
+  const platformSentimentData = Object.values(platformBreakdownMap).map(p => ({
     name: p.name,
-    'Negative %': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0
-  })).sort((a, b) => b['Negative %'] - a['Negative %']);
+    'Positive': p.total > 0 ? Math.round((p.positive / p.total) * 100) : 0,
+    'Neutral': p.total > 0 ? Math.round((p.neutral / p.total) * 100) : 0,
+    'Negative': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0,
+    positiveCount: p.positive,
+    neutralCount: p.neutral,
+    negativeCount: p.negative,
+    totalCount: p.total
+  })).sort((a, b) => b['Negative'] - a['Negative']); // Keep sorted by highest negativity concentration first
 
   // 8. TakaPay vs NgoodPay strengths/weaknesses grouped bar chart (Positive sentiment percentage)
   let countSpeedNgoodPayPositive = 0;
@@ -592,22 +688,37 @@ export default function Home() {
   let countRechargeTakaPayPositive = 0;
   let countRechargeTakaPayTotal = 0;
 
+  let countChargesNgoodPayPositive = 0;
+  let countChargesNgoodPayTotal = 0;
+  let countChargesTakaPayPositive = 0;
+  let countChargesTakaPayTotal = 0;
+
   filteredRecordsAnalytics.forEach(r => {
     const textLower = r.text.toLowerCase();
     const hasNgoodPay = textLower.includes('ngoodpay');
+    // Assume TakaPay is mentioned if explicitly flagged, or if the text has TakaPay, or if it is a general post (not competitor-only)
+    const hasTakaPay = textLower.includes('takapay') || r.brand_mention === true || r.brand_mention === 'true' || !hasNgoodPay;
     
     const isTakaPayPositive = r.sentiment === 'positive';
     
-    const isNgoodPayPositive = r.competitor_sentiment !== undefined && r.competitor_sentiment !== null
-      ? r.competitor_sentiment === 'positive'
-      : r.sentiment === 'negative'; // Legacy fallback
+    // Independent competitor sentiment calculation with legacy text fallback
+    let isNgoodPayPositive = r.competitor_sentiment === 'positive';
+    if (r.competitor_sentiment === undefined || r.competitor_sentiment === null) {
+      const transLower = (r.english_translation || '').toLowerCase();
+      const hasPositiveWord = textLower.includes('valo') || textLower.includes('bhala') || transLower.includes('good') || transLower.includes('great') || transLower.includes('fast') || transLower.includes('smooth') || transLower.includes('awesome') || transLower.includes('impressed') || transLower.includes('better') || transLower.includes('best') || transLower.includes('praise');
+      const hasNegativeWord = textLower.includes('kharap') || textLower.includes('pending') || transLower.includes('bad') || transLower.includes('slow') || transLower.includes('worst') || transLower.includes('charge') || transLower.includes('robbery') || transLower.includes('fee');
+      if (hasPositiveWord && !hasNegativeWord) {
+        isNgoodPayPositive = true;
+      }
+    }
 
     // 1. App Speed
     if (textLower.includes('speed') || textLower.includes('fast') || textLower.includes('slow') || textLower.includes('pending') || textLower.includes('atke')) {
       if (hasNgoodPay) {
         countSpeedNgoodPayTotal++;
         if (isNgoodPayPositive) countSpeedNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countSpeedTakaPayTotal++;
         if (isTakaPayPositive) countSpeedTakaPayPositive++;
       }
@@ -617,7 +728,8 @@ export default function Home() {
       if (hasNgoodPay) {
         countAgentNgoodPayTotal++;
         if (isNgoodPayPositive) countAgentNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countAgentTakaPayTotal++;
         if (isTakaPayPositive) countAgentTakaPayPositive++;
       }
@@ -627,7 +739,8 @@ export default function Home() {
       if (hasNgoodPay) {
         countCashbackNgoodPayTotal++;
         if (isNgoodPayPositive) countCashbackNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countCashbackTakaPayTotal++;
         if (isTakaPayPositive) countCashbackTakaPayPositive++;
       }
@@ -637,33 +750,70 @@ export default function Home() {
       if (hasNgoodPay) {
         countRechargeNgoodPayTotal++;
         if (isNgoodPayPositive) countRechargeNgoodPayPositive++;
-      } else {
+      }
+      if (hasTakaPay) {
         countRechargeTakaPayTotal++;
         if (isTakaPayPositive) countRechargeTakaPayPositive++;
+      }
+    }
+    // 5. Charges & Fees
+    if (textLower.includes('fee') || textLower.includes('charge') || textLower.includes('cost') || textLower.includes('limit') || textLower.includes('expensive')) {
+      if (hasNgoodPay) {
+        countChargesNgoodPayTotal++;
+        if (isNgoodPayPositive) countChargesNgoodPayPositive++;
+      }
+      if (hasTakaPay) {
+        countChargesTakaPayTotal++;
+        if (isTakaPayPositive) countChargesTakaPayPositive++;
       }
     }
   });
 
   const competitorComparisonData = [
     { 
-      name: 'App Speed', 
-      'TakaPay (Strength)': countSpeedTakaPayTotal > 0 ? Math.round((countSpeedTakaPayPositive / countSpeedTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countSpeedNgoodPayTotal > 0 ? Math.round((countSpeedNgoodPayPositive / countSpeedNgoodPayTotal) * 100) : 0 
-    },
-    { 
-      name: 'Agent Network', 
-      'TakaPay (Strength)': countAgentTakaPayTotal > 0 ? Math.round((countAgentTakaPayPositive / countAgentTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countAgentNgoodPayTotal > 0 ? Math.round((countAgentNgoodPayPositive / countAgentNgoodPayTotal) * 100) : 0 
+      name: 'Charges & Fees', 
+      'TakaPay': countChargesTakaPayTotal > 0 ? Math.round((countChargesTakaPayPositive / countChargesTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countChargesNgoodPayTotal > 0 ? Math.round((countChargesNgoodPayPositive / countChargesNgoodPayTotal) * 100) : 0,
+      takaPayPos: countChargesTakaPayPositive,
+      takaPayTotal: countChargesTakaPayTotal,
+      ngoodPayPos: countChargesNgoodPayPositive,
+      ngoodPayTotal: countChargesNgoodPayTotal
     },
     { 
       name: 'Cashback Offers', 
-      'TakaPay (Strength)': countCashbackTakaPayTotal > 0 ? Math.round((countCashbackTakaPayPositive / countCashbackTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countCashbackNgoodPayTotal > 0 ? Math.round((countCashbackNgoodPayPositive / countCashbackNgoodPayTotal) * 100) : 0 
+      'TakaPay': countCashbackTakaPayTotal > 0 ? Math.round((countCashbackTakaPayPositive / countCashbackTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countCashbackNgoodPayTotal > 0 ? Math.round((countCashbackNgoodPayPositive / countCashbackNgoodPayTotal) * 100) : 0,
+      takaPayPos: countCashbackTakaPayPositive,
+      takaPayTotal: countCashbackTakaPayTotal,
+      ngoodPayPos: countCashbackNgoodPayPositive,
+      ngoodPayTotal: countCashbackNgoodPayTotal
     },
     { 
       name: 'Recharges & Bills', 
-      'TakaPay (Strength)': countRechargeTakaPayTotal > 0 ? Math.round((countRechargeTakaPayPositive / countRechargeTakaPayTotal) * 100) : 0, 
-      'NgoodPay': countRechargeNgoodPayTotal > 0 ? Math.round((countRechargeNgoodPayPositive / countRechargeNgoodPayTotal) * 100) : 0 
+      'TakaPay': countRechargeTakaPayTotal > 0 ? Math.round((countRechargeTakaPayPositive / countRechargeTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countRechargeNgoodPayTotal > 0 ? Math.round((countRechargeNgoodPayPositive / countRechargeNgoodPayTotal) * 100) : 0,
+      takaPayPos: countRechargeTakaPayPositive,
+      takaPayTotal: countRechargeTakaPayTotal,
+      ngoodPayPos: countRechargeNgoodPayPositive,
+      ngoodPayTotal: countRechargeNgoodPayTotal
+    },
+    { 
+      name: 'Agent Network', 
+      'TakaPay': countAgentTakaPayTotal > 0 ? Math.round((countAgentTakaPayPositive / countAgentTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countAgentNgoodPayTotal > 0 ? Math.round((countAgentNgoodPayPositive / countAgentNgoodPayTotal) * 100) : 0,
+      takaPayPos: countAgentTakaPayPositive,
+      takaPayTotal: countAgentTakaPayTotal,
+      ngoodPayPos: countAgentNgoodPayPositive,
+      ngoodPayTotal: countAgentNgoodPayTotal
+    },
+    { 
+      name: 'App Speed', 
+      'TakaPay': countSpeedTakaPayTotal > 0 ? Math.round((countSpeedTakaPayPositive / countSpeedTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countSpeedNgoodPayTotal > 0 ? Math.round((countSpeedNgoodPayPositive / countSpeedNgoodPayTotal) * 100) : 0,
+      takaPayPos: countSpeedTakaPayPositive,
+      takaPayTotal: countSpeedTakaPayTotal,
+      ngoodPayPos: countSpeedNgoodPayPositive,
+      ngoodPayTotal: countSpeedNgoodPayTotal
     }
   ];
 
@@ -680,16 +830,29 @@ export default function Home() {
     if (r.competitor_sentiment !== undefined && r.competitor_sentiment !== null) {
       return r.competitor_sentiment === 'positive';
     }
-    return r.sentiment === 'negative';
+    const textLower = r.text.toLowerCase();
+    const transLower = (r.english_translation || '').toLowerCase();
+    const hasPositiveWord = textLower.includes('valo') || textLower.includes('bhala') || transLower.includes('good') || transLower.includes('great') || transLower.includes('fast') || transLower.includes('smooth') || transLower.includes('awesome') || transLower.includes('impressed') || transLower.includes('better') || transLower.includes('best') || transLower.includes('praise');
+    const hasNegativeWord = textLower.includes('kharap') || textLower.includes('pending') || transLower.includes('bad') || transLower.includes('slow') || transLower.includes('worst') || transLower.includes('charge') || transLower.includes('robbery') || transLower.includes('fee');
+    return hasPositiveWord && !hasNegativeWord;
   }).length;
   const countTakaPayPositive = competitorPosts.filter(r => r.sentiment === 'positive').length;
 
-  const ngoodPayFavorabilityRate = totalCompetitorMentions > 0
-    ? Math.round((countNgoodPayPositive / totalCompetitorMentions) * 100)
+  const competitorPostsWithNgood = competitorPosts.filter(r => r.text.toLowerCase().includes('ngoodpay'));
+  const competitorPostsWithTaka = competitorPosts.filter(r => {
+    const textLower = r.text.toLowerCase();
+    return textLower.includes('takapay') || r.brand_mention === true || r.brand_mention === 'true' || !textLower.includes('ngoodpay');
+  });
+
+  const totalNgoodPayMentions = competitorPostsWithNgood.length;
+  const totalTakaPayMentions = competitorPostsWithTaka.length;
+
+  const ngoodPayFavorabilityRate = totalNgoodPayMentions > 0
+    ? Math.round((countNgoodPayPositive / totalNgoodPayMentions) * 100)
     : 0;
 
-  const takaPayFavorabilityRate = totalCompetitorMentions > 0
-    ? Math.round((countTakaPayPositive / totalCompetitorMentions) * 100)
+  const takaPayFavorabilityRate = totalTakaPayMentions > 0
+    ? Math.round((countTakaPayPositive / totalTakaPayMentions) * 100)
     : 0;
 
   return (
@@ -781,7 +944,7 @@ export default function Home() {
       </div>
 
       {/* Global Interactive Filters Selector */}
-      {cleanedRecords.length > 0 && activeTab !== 'pipeline' && (
+      {cleanedRecords.length > 0 && activeTab === 'analytics' && (
         <section className="glass-panel p-4 rounded-2xl flex flex-wrap gap-4 items-center bg-white/[0.02]">
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1">
@@ -792,8 +955,8 @@ export default function Home() {
           {/* Social Media Platform Filter */}
           <div className="flex flex-col gap-1 min-w-[130px]">
             <select 
-              value={platformFilter} 
-              onChange={(e) => { setPlatformFilter(e.target.value); setCurrentPage(1); }}
+              value={analyticsPlatformFilter} 
+              onChange={(e) => { setAnalyticsPlatformFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Social Medias</option>
@@ -810,8 +973,8 @@ export default function Home() {
           {/* Sentiment Filter */}
           <div className="flex flex-col gap-1 min-w-[120px]">
             <select 
-              value={sentimentFilter} 
-              onChange={(e) => { setSentimentFilter(e.target.value); setCurrentPage(1); }}
+              value={analyticsSentimentFilter} 
+              onChange={(e) => { setAnalyticsSentimentFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Sentiments</option>
@@ -824,8 +987,8 @@ export default function Home() {
           {/* Topic Filter */}
           <div className="flex flex-col gap-1 min-w-[130px]">
             <select 
-              value={topicFilter} 
-              onChange={(e) => { setTopicFilter(e.target.value); setCurrentPage(1); }}
+              value={analyticsTopicFilter} 
+              onChange={(e) => { setAnalyticsTopicFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Topics</option>
@@ -846,51 +1009,46 @@ export default function Home() {
             <div className="flex items-center gap-1 text-[11px]">
               <input 
                 type="date" 
-                value={startDateFilter}
+                value={analyticsStartDateFilter}
                 min="2026-06-01"
                 max="2026-06-30"
-                onChange={(e) => { setStartDateFilter(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setAnalyticsStartDateFilter(e.target.value); setCurrentPage(1); }}
                 className="bg-transparent text-white focus:outline-none cursor-pointer font-bold"
               />
               <span className="text-gray-500">to</span>
               <input 
                 type="date" 
-                value={endDateFilter}
+                value={analyticsEndDateFilter}
                 min="2026-06-01"
                 max="2026-06-30"
-                onChange={(e) => { setEndDateFilter(e.target.value); setCurrentPage(1); }}
+                onChange={(e) => { setAnalyticsEndDateFilter(e.target.value); setCurrentPage(1); }}
                 className="bg-transparent text-white focus:outline-none cursor-pointer font-bold"
               />
             </div>
           </div>
 
           {/* Analytics-Only Search Bar */}
-          {activeTab === 'analytics' && (
-            <div className="relative flex items-center min-w-[200px]">
-              <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
-              <input 
-                type="text" 
-                placeholder="Search analytics..." 
-                value={analyticsSearchTerm}
-                onChange={(e) => setAnalyticsSearchTerm(e.target.value)}
-                className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full focus:outline-none"
-              />
-            </div>
-          )}
+          <div className="relative flex items-center min-w-[200px]">
+            <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            <input 
+              type="text" 
+              placeholder="Search analytics..." 
+              value={analyticsSearchTerm}
+              onChange={(e) => setAnalyticsSearchTerm(e.target.value)}
+              className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full focus:outline-none"
+            />
+          </div>
 
           {/* Reset Filters Quick Button */}
-          {(platformFilter !== 'all' || sentimentFilter !== 'all' || topicFilter !== 'all' || startDateFilter !== '2026-06-01' || endDateFilter !== '2026-06-30' || analyticsSearchTerm !== '' || explorerSearchTerm !== '') && (
+          {(analyticsPlatformFilter !== 'all' || analyticsSentimentFilter !== 'all' || analyticsTopicFilter !== 'all' || analyticsStartDateFilter !== '2026-06-01' || analyticsEndDateFilter !== '2026-06-30' || analyticsSearchTerm !== '') && (
             <button 
               onClick={() => {
-                setPlatformFilter('all');
-                setSentimentFilter('all');
-                setTopicFilter('all');
-                setStartDateFilter('2026-06-01');
-                setEndDateFilter('2026-06-30');
+                setAnalyticsPlatformFilter('all');
+                setAnalyticsSentimentFilter('all');
+                setAnalyticsTopicFilter('all');
+                setAnalyticsStartDateFilter('2026-06-01');
+                setAnalyticsEndDateFilter('2026-06-30');
                 setAnalyticsSearchTerm('');
-                setExplorerSearchTerm('');
-                setSeverityFilter('all');
-                setRiskFilter('all');
                 setCurrentPage(1);
               }}
               className="text-[10px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer transition-colors"
@@ -1041,7 +1199,7 @@ export default function Home() {
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ color: '#fff', fontSize: '12px' }}
                       />
-                      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '11px', color: '#9ca3af' }} />
+                      <Legend content={renderCustomLegend} />
                     </PieChart>
                   </ResponsiveContainer>
                   {/* Center text of Donut */}
@@ -1071,7 +1229,7 @@ export default function Home() {
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ fontSize: '11px' }}
                       />
-                      <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                      <Legend content={renderCustomLegend} />
                       <Bar dataKey="positive" stackId="a" fill="#10b981" name="Positive" />
                       <Bar dataKey="neutral" stackId="a" fill="#6b7280" name="Neutral" />
                       <Bar dataKey="negative" stackId="a" fill="#ef4444" name="Negative" />
@@ -1131,30 +1289,43 @@ export default function Home() {
                       <Tooltip 
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ fontSize: '11px' }}
+                        formatter={(value, name, props) => {
+                          const { payload } = props;
+                          let pos = 0;
+                          let total = 0;
+                          if (name === 'TakaPay') {
+                            pos = payload.takaPayPos;
+                            total = payload.takaPayTotal;
+                          } else {
+                            pos = payload.ngoodPayPos;
+                            total = payload.ngoodPayTotal;
+                          }
+                          return [`${value}% (${pos} of ${total} posts)`, name];
+                        }}
                       />
                       <Legend verticalAlign="bottom" height={24} iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                      <Bar dataKey="TakaPay (Strength)" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="TakaPay" fill="#6366f1" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="NgoodPay" fill="#a855f7" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Platform Negativity Density Chart */}
+              {/* Platform Sentiment Breakdown Chart */}
               <div className="glass-panel p-5 rounded-2xl flex flex-col justify-between min-h-[350px]">
                 <div>
                   <h3 className="text-sm font-extrabold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
                     <Layers className="w-4 h-4 text-purple-400" />
-                    Social Channel Negativity Density (% Negative Sentiment)
+                    Social Channel Sentiment Breakdown (% Sentiment)
                   </h3>
                   <p className="text-[10px] text-gray-400 mb-4">
-                    Indicates which platforms contain the highest concentration of customer complaints.
+                    Visualizing the proportion of Positive, Neutral, and Negative user sentiments across each social channel.
                   </p>
                 </div>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={platformNegativityData}
+                      data={platformSentimentData}
                       margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -1163,9 +1334,19 @@ export default function Home() {
                       <Tooltip 
                         contentStyle={{ background: '#111827', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px' }}
                         itemStyle={{ fontSize: '11px' }}
-                        formatter={(value) => `${value}%`}
+                        formatter={(value, name, props) => {
+                          const { payload } = props;
+                          let count = 0;
+                          if (name === 'Positive') count = payload.positiveCount;
+                          else if (name === 'Neutral') count = payload.neutralCount;
+                          else if (name === 'Negative') count = payload.negativeCount;
+                          return [`${value}% (${count} of ${payload.totalCount} posts)`, name];
+                        }}
                       />
-                      <Bar dataKey="Negative %" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      <Legend content={renderCustomLegend} />
+                      <Bar dataKey="Positive" fill="#10b981" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Neutral" fill="#6b7280" radius={[3, 3, 0, 0]} />
+                      <Bar dataKey="Negative" fill="#ef4444" radius={[3, 3, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1251,8 +1432,8 @@ export default function Home() {
               />
             </div>
             <select 
-              value={sentimentFilter} 
-              onChange={(e) => { setSentimentFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerSentimentFilter} 
+              onChange={(e) => { setExplorerSentimentFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Sentiments</option>
@@ -1261,8 +1442,8 @@ export default function Home() {
               <option value="neutral">Neutral</option>
             </select>
             <select 
-              value={topicFilter} 
-              onChange={(e) => { setTopicFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerTopicFilter} 
+              onChange={(e) => { setExplorerTopicFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Topics</option>
@@ -1276,8 +1457,8 @@ export default function Home() {
               <option value="off_topic">Off-Topic</option>
             </select>
             <select 
-              value={severityFilter} 
-              onChange={(e) => { setSeverityFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerSeverityFilter} 
+              onChange={(e) => { setExplorerSeverityFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Severities</option>
@@ -1287,8 +1468,8 @@ export default function Home() {
               <option value="Low">Low</option>
             </select>
             <select 
-              value={riskFilter} 
-              onChange={(e) => { setRiskFilter(e.target.value); setCurrentPage(1); }}
+              value={explorerRiskFilter} 
+              onChange={(e) => { setExplorerRiskFilter(e.target.value); setCurrentPage(1); }}
               className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
             >
               <option value="all">All Risks</option>
@@ -1435,7 +1616,7 @@ export default function Home() {
                     className="glass-input w-full px-3 py-2 text-xs rounded-xl bg-indigo-950/20 border border-indigo-500/20 cursor-pointer focus:outline-none"
                   >
                     <option value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile (Fast)</option>
-                    <option value="llama-3.1-8b-instant">Llama 3.1 8B Instant (Very Fast)</option>
+                    <option value="openai/gpt-oss-120b">GPT OSS 120B (High Quality)</option>
                   </select>
                 </div>
 
@@ -1506,7 +1687,7 @@ export default function Home() {
                 <span className={`w-2 h-2 rounded-full ${isProcessing ? 'bg-indigo-400 animate-pulse' : 'bg-emerald-400'}`} />
                 Pipeline Live Logs
               </h3>
-              <div className="bg-black/40 border border-white/5 rounded-xl p-4 font-mono text-[11px] text-gray-300 flex-1 overflow-y-auto flex flex-col gap-1.5">
+              <div ref={logContainerRef} className="bg-black/40 border border-white/5 rounded-xl p-4 font-mono text-[11px] text-gray-300 h-[280px] overflow-y-auto flex flex-col gap-1.5">
                 {statusLogs.map((log, index) => (
                   <div key={index} className="border-l border-white/10 pl-2">
                     <span className="text-indigo-400 mr-1.5">$</span>

@@ -281,7 +281,7 @@ function convertToCSV(records) {
     'id', 'platform', 'timestamp', 'author', 'text', 'language', 'brand_mention',
     'sentiment', 'sentiment_score', 'topic', 'reactions', 'comments',
     'english_translation', 'severity_level', 'mentioned_competitors',
-    'engagement', 'is_competitor_comparison', 'is_high_risk'
+    'engagement', 'is_competitor_comparison', 'is_high_risk', 'competitor_sentiment'
   ];
   
   const csvRows = [headers.join(',')];
