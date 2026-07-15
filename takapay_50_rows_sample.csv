@@ -1,0 +1,51 @@
+id,platform,timestamp,author,text,language,brand_mention,sentiment,sentiment_score,topic,reactions,comments
+1550,Instagram,2026-06-21 01:47:00,Anika10,"NgoodPay notun 500 taka cashback offer diyeche, keu try koreche?",bn-en,True,negative,9,competitor,325,56
+1314,Facebook,2026-06-04 21:41:00,Zubair32,"Grameenphone recharge NgoodPay diye korle 500 e extra bonus, TakaPay e nai.",bn-en,True,negative,6,competitor,2,22
+1409,Facebook,2026-06-09 16:13:00,Jony47,"Motijheel e NgoodPay agent beshi, TakaPay agent khuje pai na.",bn-en,True,negative,23,competitor,344,35
+1375,YouTube,2026-06-29 16:35:00,Nafisa77,"Mohakhali e NgoodPay agent beshi, TakaPay agent khuje pai na.",bn-en,True,negative,30,competitor,116,120
+1326,News/Media,2026-06-30 16:39:00,Prova7,baba bollo NgoodPay er customer care TakaPay er cheye onek valo.,bn-en,True,negative,10,competitor,406,111
+1403,YouTube,2026-06-14 06:54:00,Nafisa16,"NgoodPay app ta ekhon TakaPay theke faster mone hoche, Bashundhara eo kaj kore.",bn-en,True,negative,19,competitor,109,55
+1574,TikTok,2026-06-25 13:28:00,Rifat29,"Grameenphone recharge NgoodPay diye korle 10000 e extra bonus, TakaPay e nai.",bn-en,True,negative,19,competitor,224,114
+1137,Twitter,2026-06-07 09:21:00,Priya45,"NgoodPay er cash out charge 500 e onek kom, tai TakaPay chere switch korlam.",bn-en,True,negative,24,competitor,324,74
+1359,Facebook,2026-06-30 04:33:00,Farhana92,"Airtel recharge NgoodPay diye korle 800 e extra bonus, TakaPay e nai.",bn-en,True,negative,16,competitor,80,45
+1379,Reddit,2026-06-01 09:43:00,Rakib34,"NgoodPay app ta ekhon TakaPay theke faster mone hoche, Banani eo kaj kore.",bn-en,True,negative,17,competitor,321,62
+1650,Facebook,2026-06-03 16:27:00,Fahim47,"Teletalk recharge NgoodPay diye korle 2000 e extra bonus, TakaPay e nai.",bn-en,True,negative,16,competitor,367,45
+1329,News/Media,2026-06-04 02:45:00,Shuvo58,amar bon bollo NgoodPay er customer care TakaPay er cheye onek valo.,bn-en,True,negative,9,competitor,213,1
+1451,Reddit,2026-06-28 10:04:00,Fahim55,"Sylhet e NgoodPay agent beshi, TakaPay agent khuje pai na.",bn-en,True,negative,24,competitor,92,6
+1250,Instagram,2026-06-26 23:21:00,Mitu19,"Airtel recharge NgoodPay diye korle 2000 e extra bonus, TakaPay e nai.",bn-en,True,negative,22,competitor,33,118
+1447,Facebook,2026-06-11 22:18:00,Fahim18,"NgoodPay er cash out charge 1500 e onek kom, tai TakaPay chere switch korlam.",bn-en,True,negative,26,competitor,315,65
+1017,TikTok,2026-06-21 01:16:00,Farhana15,"TakaPay helpline e 30 min wait korlam, keu dhorlo na.",bn-en,True,negative,8,customer_care,174,76
+1506,YouTube,2026-06-21 09:11:00,Priya7,আমার একাউন্ট থেকে 5000 টাকা কেটে নিয়েছে কিন্তু Grameenphone রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।,bn,True,negative,27,failed_transaction,278,85
+1488,YouTube,2026-06-23 03:45:00,Tuhin39,Why is TakaPay charging 15 taka to cash out 1500? This is robbery.,en,True,negative,28,charges_fees,327,51
+1158,Facebook,2026-06-11 14:21:00,Rima75,আমার একাউন্ট থেকে 10000 টাকা কেটে নিয়েছে কিন্তু Banglalink রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।,bn,True,negative,30,failed_transaction,266,114
+1472,TikTok,2026-06-15 14:35:00,Sadia29,"TakaPay diye amar bon ke 10000 taka pathalam, 30 min hoye gelo ekhono pending!",bn-en,True,negative,11,failed_transaction,369,25
+1542,Facebook,2026-06-17 05:59:00,Sakib85,আমার একাউন্ট থেকে 2000 টাকা কেটে নিয়েছে কিন্তু Robi রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।,bn,True,negative,17,failed_transaction,159,30
+1588,Facebook,2026-06-03 11:31:00,Rima33,2500 taka TakaPay theke katlo but receiver pay nai. 3 din dhore atke ache.,bn-en,True,negative,28,failed_transaction,121,74
+1433,Reddit,2026-06-17 23:18:00,Mehedi4,আমার একাউন্ট থেকে 300 টাকা কেটে নিয়েছে কিন্তু Banglalink রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।,bn,True,negative,21,failed_transaction,332,63
+1458,News/Media,2026-06-24 09:15:00,Nafisa67,"TakaPay diye amar bon ke 1000 taka pathalam, 2 ghonta hoye gelo ekhono pending!",bn-en,True,negative,16,failed_transaction,80,16
+1116,News/Media,2026-06-01 06:56:00,Rima56,300 taka TakaPay theke katlo but receiver pay nai. 2 din dhore atke ache.,bn-en,True,negative,28,failed_transaction,381,116
+1395,Reddit,2026-06-30 23:21:00,Sadia64,"bhai কে টাকা পাঠিয়েছি 2 din আগে, এখনো পৌঁছায়নি। TakaPay কী করছে?",bn,True,negative,9,failed_transaction,374,55
+1511,Twitter,2026-06-08 05:36:00,Rima2,"TakaPay diye bhai ke 2500 taka pathalam, 3 din hoye gelo ekhono pending!",bn-en,True,negative,10,failed_transaction,421,51
+1468,Facebook,2026-06-17 11:59:00,Nafisa60,আমার একাউন্ট থেকে 10000 টাকা কেটে নিয়েছে কিন্তু Teletalk রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।,bn,True,negative,30,failed_transaction,413,25
+1524,News/Media,2026-06-11 02:48:00,Nafisa83,2000 taka TakaPay theke katlo but receiver pay nai. 2 din dhore atke ache.,bn-en,True,negative,7,failed_transaction,152,81
+1154,Twitter,2026-06-28 13:43:00,Nafisa2,"Instant Banglalink recharge on TakaPay, 1500 taka, done before I finished my tea.",en,True,negative,7,recharge,425,19
+1173,TikTok,2026-06-08 23:49:00,Sabbir77,Paid my gas bill on TakaPay in under a minute. Genuinely smooth experience.,en,True,positive,88,bill_payment,40,106
+1043,YouTube,2026-06-25 04:05:00,Tuhin27,Paid my internet bill on TakaPay in under a minute. Genuinely smooth experience.,en,True,positive,92,bill_payment,148,57
+1325,Facebook,2026-06-14 23:05:00,Arif65,TakaPay agent kothay pabo Farmgate te? Cash out korte hobe.,bn-en,True,neutral,50,agent_network,335,41
+1437,News/Media,2026-06-18 09:46:00,Sakib74,"Instant Teletalk recharge on TakaPay, 2000 taka, done before I finished my tea.",en,True,positive,74,recharge,131,116
+1273,Facebook,2026-06-10 03:18:00,Priya8,"Instant Grameenphone recharge on TakaPay, 10000 taka, done before I finished my tea.",en,True,positive,83,recharge,83,39
+1399,YouTube,2026-06-23 10:33:00,Nusrat16,"Instant Banglalink recharge on TakaPay, 300 taka, done before I finished my tea.",en,True,positive,88,recharge,83,107
+1354,Facebook,2026-06-04 20:39:00,Tanvir8,"colleague কে 2500 টাকা পাঠালাম TakaPay দিয়ে, সাথে সাথে চলে গেল।",bn,True,positive,74,send_money,278,24
+1145,News/Media,2026-06-16 16:37:00,Sabbir84,"amar friend কে 10000 টাকা পাঠালাম TakaPay দিয়ে, সাথে সাথে চলে গেল।",bn,True,positive,80,send_money,252,101
+1295,Facebook,2026-06-13 05:05:00,Maliha17,TakaPay agent kothay pabo Dhanmondi 27 te? Cash out korte hobe.,bn-en,True,neutral,54,agent_network,479,45
+1079,Facebook,2026-06-26 12:54:00,Tuhin27,TakaPay customer care sararat min e call dhorlo ar problem solve kore dilo. Impressed.,bn-en,True,positive,85,customer_care,194,45
+1642,Instagram,2026-06-02 12:49:00,Lamia22,"amar bon কে টাকা পাঠিয়েছি sararat আগে, এখনো পৌঁছায়নি। TakaPay কী করছে?",bn,True,positive,91,failed_transaction,356,47
+1413,News/Media,2026-06-02 22:24:00,Sumaiya54,"amar friend কে 2000 টাকা পাঠালাম TakaPay দিয়ে, সাথে সাথে চলে গেল।",bn,True,positive,88,send_money,470,79
+1431,Facebook,2026-06-11 18:45:00,Tuhin20,আমার একাউন্ট থেকে 1000 টাকা কেটে নিয়েছে কিন্তু Grameenphone রিচার্জ হয়নি। TakaPay এর কোনো হেল্প নেই।,bn,True,positive,79,failed_transaction,193,68
+1146,Reddit,2026-06-14 16:07:00,Sadia1,"Traffic ajke Farmgate e insane, 2 ghonta laglo pouchte.",bn-en,True,positive,46,off_topic,23,24
+1450,Facebook,2026-06-09 06:08:00,Lamia26,"TakaPay e credit card bill dilam ar 1000 taka cashback pelam, darun offer!",bn-en,True,positive,89,cashback_offer,314,53
+1310,Facebook,2026-06-11 13:56:00,Hasan95,"TakaPay saved me a trip today, cleared my tuition fee from bed. Love it.",en,True,positive,84,bill_payment,362,46
+1362,Facebook,2026-06-29 10:11:00,Zubair25,Can I pay my credit card bill with TakaPay or only send money?,en,True,neutral,49,feature_query,105,2
+1024,Twitter,2026-06-17 14:16:00,Tanvir29,"ma কে 2000 টাকা পাঠালাম TakaPay দিয়ে, সাথে সাথে চলে গেল।",bn,True,negative,20,send_money,52,29
+1109,Facebook,2026-06-29 00:09:00,Nafisa7,TakaPay customer care 2 min e call dhorlo ar problem solve kore dilo. Impressed.,bn-en,True,positive,79,customer_care,151,104
+1491,Reddit,2026-06-06 23:12:00,Sadia52,"Instant Grameenphone recharge on TakaPay, 2500 taka, done before I finished my tea.",en,True,positive,74,recharge,418,64

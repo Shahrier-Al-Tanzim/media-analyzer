@@ -59,11 +59,13 @@ export default function Home() {
   const [processingMetrics, setProcessingMetrics] = useState(null);
   
   // Table View & Filtering state
-  const [searchTerm, setSearchTerm] = useState("");
+  const [analyticsSearchTerm, setAnalyticsSearchTerm] = useState("");
+  const [explorerSearchTerm, setExplorerSearchTerm] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState("all");
   const [severityFilter, setSeverityFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [platformFilter, setPlatformFilter] = useState("all");
+  const [topicFilter, setTopicFilter] = useState("all");
   const [startDateFilter, setStartDateFilter] = useState("2026-06-01");
   const [endDateFilter, setEndDateFilter] = useState("2026-06-30");
   const [currentPage, setCurrentPage] = useState(1);
@@ -133,7 +135,8 @@ export default function Home() {
               mentioned_competitors,
               engagement: r.engagement !== undefined ? parseInt(r.engagement, 10) : (reactions + comments),
               is_competitor_comparison: r.is_competitor_comparison !== undefined ? !!r.is_competitor_comparison : (mentioned_competitors.length > 0),
-              is_high_risk: r.is_high_risk !== undefined ? !!r.is_high_risk : (r.sentiment === 'negative' && (reactions + comments) > 100)
+              is_high_risk: r.is_high_risk !== undefined ? !!r.is_high_risk : (r.sentiment === 'negative' && (reactions + comments) > 100),
+              competitor_sentiment: r.competitor_sentiment !== undefined ? r.competitor_sentiment : null
             };
           });
 
@@ -317,6 +320,7 @@ export default function Home() {
             record.severity_level = result.severity_level;
             record.mentioned_competitors = result.mentioned_competitors || [];
             record.brand_mention = result.brand_mention;
+            record.competitor_sentiment = result.competitor_sentiment || null;
           }
 
           // Programmatic fields
@@ -348,6 +352,7 @@ export default function Home() {
           record.engagement = parseInt(record.reactions || 0, 10) + parseInt(record.comments || 0, 10);
           record.is_competitor_comparison = false;
           record.is_high_risk = false;
+          record.competitor_sentiment = null;
           
           finalCleaned.push(record);
         }
@@ -456,35 +461,56 @@ export default function Home() {
     downloadAnchor.remove();
   };
 
-  // Filter & Search Logic
-  const filteredRecords = cleanedRecords.filter(r => {
-    const matchesSearch = r.text.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          r.english_translation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          r.author.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter & Search Logic for Data Explorer (Table)
+  const filteredRecordsExplorer = cleanedRecords.filter(r => {
+    const matchesSearch = r.text.toLowerCase().includes(explorerSearchTerm.toLowerCase()) || 
+                          r.english_translation?.toLowerCase().includes(explorerSearchTerm.toLowerCase()) ||
+                          r.author.toLowerCase().includes(explorerSearchTerm.toLowerCase());
     
     const matchesSentiment = sentimentFilter === 'all' || r.sentiment === sentimentFilter;
     const matchesSeverity = severityFilter === 'all' || r.severity_level === severityFilter;
     const matchesRisk = riskFilter === 'all' || (riskFilter === 'high_risk' && r.is_high_risk);
     const matchesPlatform = platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
+    const matchesTopic = topicFilter === 'all' || r.topic === topicFilter;
     
-    // Parse timestamp to date comparison
     let matchesDate = true;
     if (r.timestamp && r.timestamp.length >= 10) {
       const rowDate = r.timestamp.substring(0, 10);
       matchesDate = rowDate >= startDateFilter && rowDate <= endDateFilter;
     }
 
-    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate;
+    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate && matchesTopic;
   });
 
-  // Pagination Logic
+  // Filter & Search Logic for Executive Dashboard
+  const filteredRecordsAnalytics = cleanedRecords.filter(r => {
+    const matchesSearch = r.text.toLowerCase().includes(analyticsSearchTerm.toLowerCase()) || 
+                          r.english_translation?.toLowerCase().includes(analyticsSearchTerm.toLowerCase()) ||
+                          r.author.toLowerCase().includes(analyticsSearchTerm.toLowerCase());
+    
+    const matchesSentiment = sentimentFilter === 'all' || r.sentiment === sentimentFilter;
+    const matchesSeverity = severityFilter === 'all' || r.severity_level === severityFilter;
+    const matchesRisk = riskFilter === 'all' || (riskFilter === 'high_risk' && r.is_high_risk);
+    const matchesPlatform = platformFilter === 'all' || r.platform.toLowerCase() === platformFilter.toLowerCase();
+    const matchesTopic = topicFilter === 'all' || r.topic === topicFilter;
+    
+    let matchesDate = true;
+    if (r.timestamp && r.timestamp.length >= 10) {
+      const rowDate = r.timestamp.substring(0, 10);
+      matchesDate = rowDate >= startDateFilter && rowDate <= endDateFilter;
+    }
+
+    return matchesSearch && matchesSentiment && matchesSeverity && matchesRisk && matchesPlatform && matchesDate && matchesTopic;
+  });
+
+  // Pagination Logic (Uses Explorer filtered records)
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredRecords.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
+  const currentItems = filteredRecordsExplorer.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredRecordsExplorer.length / itemsPerPage);
 
-  // --- ANALYTICS COMPUTATIONS (Uses Filtered Records so dashboard updates live!) ---
-  const relevantRecords = filteredRecords.filter(r => r.brand_mention !== false && r.topic !== 'off_topic');
+  // --- ANALYTICS COMPUTATIONS (Uses Analytics filtered records) ---
+  const relevantRecords = filteredRecordsAnalytics.filter(r => r.brand_mention !== false && r.topic !== 'off_topic');
   const totalRelevant = relevantRecords.length;
 
   const countPositive = relevantRecords.filter(r => r.sentiment === 'positive').length;
@@ -503,8 +529,8 @@ export default function Home() {
   const highRiskCrisisCount = relevantRecords.filter(r => r.is_high_risk).length;
 
   // 4. Brand Purity Relevance Ratio
-  const relevanceRatio = filteredRecords.length > 0 
-    ? Math.round((totalRelevant / filteredRecords.length) * 100) 
+  const relevanceRatio = filteredRecordsAnalytics.length > 0 
+    ? Math.round((totalRelevant / filteredRecordsAnalytics.length) * 100) 
     : 0;
 
   // 5. Pie Chart Data (Sentiment Breakdown)
@@ -530,7 +556,7 @@ export default function Home() {
 
   // 7. Platform Negativity Density Comparison Chart
   const platformBreakdownMap = {};
-  filteredRecords.forEach(r => {
+  filteredRecordsAnalytics.forEach(r => {
     if (!platformBreakdownMap[r.platform]) {
       platformBreakdownMap[r.platform] = { name: r.platform, negative: 0, total: 0 };
     }
@@ -545,47 +571,100 @@ export default function Home() {
     'Negative %': p.total > 0 ? Math.round((p.negative / p.total) * 100) : 0
   })).sort((a, b) => b['Negative %'] - a['Negative %']);
 
-  // 8. TakaPay vs NgoodPay strengths/weaknesses grouped bar chart
-  let countSpeedNgoodPay = 0;
-  let countSpeedTakaPay = 0;
-  let countAgentNgoodPay = 0;
-  let countAgentTakaPay = 0;
-  let countCashbackNgoodPay = 0;
-  let countCashbackTakaPay = 0;
-  let countRechargeNgoodPay = 0;
-  let countRechargeTakaPay = 0;
+  // 8. TakaPay vs NgoodPay strengths/weaknesses grouped bar chart (Positive sentiment percentage)
+  let countSpeedNgoodPayPositive = 0;
+  let countSpeedNgoodPayTotal = 0;
+  let countSpeedTakaPayPositive = 0;
+  let countSpeedTakaPayTotal = 0;
 
-  filteredRecords.forEach(r => {
+  let countAgentNgoodPayPositive = 0;
+  let countAgentNgoodPayTotal = 0;
+  let countAgentTakaPayPositive = 0;
+  let countAgentTakaPayTotal = 0;
+
+  let countCashbackNgoodPayPositive = 0;
+  let countCashbackNgoodPayTotal = 0;
+  let countCashbackTakaPayPositive = 0;
+  let countCashbackTakaPayTotal = 0;
+
+  let countRechargeNgoodPayPositive = 0;
+  let countRechargeNgoodPayTotal = 0;
+  let countRechargeTakaPayPositive = 0;
+  let countRechargeTakaPayTotal = 0;
+
+  filteredRecordsAnalytics.forEach(r => {
     const textLower = r.text.toLowerCase();
     const hasNgoodPay = textLower.includes('ngoodpay');
     
+    const isTakaPayPositive = r.sentiment === 'positive';
+    
+    const isNgoodPayPositive = r.competitor_sentiment !== undefined && r.competitor_sentiment !== null
+      ? r.competitor_sentiment === 'positive'
+      : r.sentiment === 'negative'; // Legacy fallback
+
     // 1. App Speed
     if (textLower.includes('speed') || textLower.includes('fast') || textLower.includes('slow') || textLower.includes('pending') || textLower.includes('atke')) {
-      if (hasNgoodPay) countSpeedNgoodPay++;
-      else countSpeedTakaPay++;
+      if (hasNgoodPay) {
+        countSpeedNgoodPayTotal++;
+        if (isNgoodPayPositive) countSpeedNgoodPayPositive++;
+      } else {
+        countSpeedTakaPayTotal++;
+        if (isTakaPayPositive) countSpeedTakaPayPositive++;
+      }
     }
     // 2. Agent Network
     if (textLower.includes('agent') || textLower.includes('network') || textLower.includes('area') || textLower.includes('location') || textLower.includes('pabo')) {
-      if (hasNgoodPay) countAgentNgoodPay++;
-      else countAgentTakaPay++;
+      if (hasNgoodPay) {
+        countAgentNgoodPayTotal++;
+        if (isNgoodPayPositive) countAgentNgoodPayPositive++;
+      } else {
+        countAgentTakaPayTotal++;
+        if (isTakaPayPositive) countAgentTakaPayPositive++;
+      }
     }
     // 3. Cashback Offers
     if (textLower.includes('cashback') || textLower.includes('offer') || textLower.includes('bonus') || textLower.includes('discount')) {
-      if (hasNgoodPay) countCashbackNgoodPay++;
-      else countCashbackTakaPay++;
+      if (hasNgoodPay) {
+        countCashbackNgoodPayTotal++;
+        if (isNgoodPayPositive) countCashbackNgoodPayPositive++;
+      } else {
+        countCashbackTakaPayTotal++;
+        if (isTakaPayPositive) countCashbackTakaPayPositive++;
+      }
     }
     // 4. Mobile Recharge
     if (textLower.includes('recharge') || textLower.includes('bill') || textLower.includes('load')) {
-      if (hasNgoodPay) countRechargeNgoodPay++;
-      else countRechargeTakaPay++;
+      if (hasNgoodPay) {
+        countRechargeNgoodPayTotal++;
+        if (isNgoodPayPositive) countRechargeNgoodPayPositive++;
+      } else {
+        countRechargeTakaPayTotal++;
+        if (isTakaPayPositive) countRechargeTakaPayPositive++;
+      }
     }
   });
 
   const competitorComparisonData = [
-    { name: 'App Speed', 'TakaPay (Strength)': countSpeedTakaPay, 'NgoodPay': countSpeedNgoodPay },
-    { name: 'Agent Network', 'TakaPay (Strength)': countAgentTakaPay, 'NgoodPay': countAgentNgoodPay },
-    { name: 'Cashback Offers', 'TakaPay (Strength)': countCashbackTakaPay, 'NgoodPay': countCashbackNgoodPay },
-    { name: 'Recharges & Bills', 'TakaPay (Strength)': countRechargeTakaPay, 'NgoodPay': countRechargeNgoodPay }
+    { 
+      name: 'App Speed', 
+      'TakaPay (Strength)': countSpeedTakaPayTotal > 0 ? Math.round((countSpeedTakaPayPositive / countSpeedTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countSpeedNgoodPayTotal > 0 ? Math.round((countSpeedNgoodPayPositive / countSpeedNgoodPayTotal) * 100) : 0 
+    },
+    { 
+      name: 'Agent Network', 
+      'TakaPay (Strength)': countAgentTakaPayTotal > 0 ? Math.round((countAgentTakaPayPositive / countAgentTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countAgentNgoodPayTotal > 0 ? Math.round((countAgentNgoodPayPositive / countAgentNgoodPayTotal) * 100) : 0 
+    },
+    { 
+      name: 'Cashback Offers', 
+      'TakaPay (Strength)': countCashbackTakaPayTotal > 0 ? Math.round((countCashbackTakaPayPositive / countCashbackTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countCashbackNgoodPayTotal > 0 ? Math.round((countCashbackNgoodPayPositive / countCashbackNgoodPayTotal) * 100) : 0 
+    },
+    { 
+      name: 'Recharges & Bills', 
+      'TakaPay (Strength)': countRechargeTakaPayTotal > 0 ? Math.round((countRechargeTakaPayPositive / countRechargeTakaPayTotal) * 100) : 0, 
+      'NgoodPay': countRechargeNgoodPayTotal > 0 ? Math.round((countRechargeNgoodPayPositive / countRechargeNgoodPayTotal) * 100) : 0 
+    }
   ];
 
   // 9. Fire Feed (Top 4 critical crisis posts)
@@ -595,10 +674,22 @@ export default function Home() {
     .slice(0, 4);
 
   // 10. Competitor simple metrics
-  const competitorPosts = filteredRecords.filter(r => r.is_competitor_comparison);
+  const competitorPosts = filteredRecordsAnalytics.filter(r => r.is_competitor_comparison);
   const totalCompetitorMentions = competitorPosts.length;
-  const competitorSentimentAvg = competitorPosts.length > 0
-    ? Math.round((competitorPosts.filter(r => r.sentiment === 'negative').length / competitorPosts.length) * 100)
+  const countNgoodPayPositive = competitorPosts.filter(r => {
+    if (r.competitor_sentiment !== undefined && r.competitor_sentiment !== null) {
+      return r.competitor_sentiment === 'positive';
+    }
+    return r.sentiment === 'negative';
+  }).length;
+  const countTakaPayPositive = competitorPosts.filter(r => r.sentiment === 'positive').length;
+
+  const ngoodPayFavorabilityRate = totalCompetitorMentions > 0
+    ? Math.round((countNgoodPayPositive / totalCompetitorMentions) * 100)
+    : 0;
+
+  const takaPayFavorabilityRate = totalCompetitorMentions > 0
+    ? Math.round((countTakaPayPositive / totalCompetitorMentions) * 100)
     : 0;
 
   return (
@@ -730,6 +821,25 @@ export default function Home() {
             </select>
           </div>
 
+          {/* Topic Filter */}
+          <div className="flex flex-col gap-1 min-w-[130px]">
+            <select 
+              value={topicFilter} 
+              onChange={(e) => { setTopicFilter(e.target.value); setCurrentPage(1); }}
+              className="glass-input px-2.5 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
+            >
+              <option value="all">All Topics</option>
+              <option value="failed_transaction">Failed Transactions</option>
+              <option value="bill_payment">Bill Payments</option>
+              <option value="recharge">Mobile Recharges</option>
+              <option value="send_money">Send Money</option>
+              <option value="customer_care">Customer Care</option>
+              <option value="charges_fees">Charges & Fees</option>
+              <option value="agent_network">Agent Network</option>
+              <option value="off_topic">Off-Topic</option>
+            </select>
+          </div>
+
           {/* Date Timeline Picker */}
           <div className="flex items-center gap-2 bg-white/5 border border-white/5 px-3 py-1 rounded-xl">
             <Calendar className="w-3.5 h-3.5 text-indigo-400" />
@@ -754,15 +864,31 @@ export default function Home() {
             </div>
           </div>
 
+          {/* Analytics-Only Search Bar */}
+          {activeTab === 'analytics' && (
+            <div className="relative flex items-center min-w-[200px]">
+              <Search className="absolute left-3 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <input 
+                type="text" 
+                placeholder="Search analytics..." 
+                value={analyticsSearchTerm}
+                onChange={(e) => setAnalyticsSearchTerm(e.target.value)}
+                className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full focus:outline-none"
+              />
+            </div>
+          )}
+
           {/* Reset Filters Quick Button */}
-          {(platformFilter !== 'all' || sentimentFilter !== 'all' || startDateFilter !== '2026-06-01' || endDateFilter !== '2026-06-30') && (
+          {(platformFilter !== 'all' || sentimentFilter !== 'all' || topicFilter !== 'all' || startDateFilter !== '2026-06-01' || endDateFilter !== '2026-06-30' || analyticsSearchTerm !== '' || explorerSearchTerm !== '') && (
             <button 
               onClick={() => {
                 setPlatformFilter('all');
                 setSentimentFilter('all');
+                setTopicFilter('all');
                 setStartDateFilter('2026-06-01');
                 setEndDateFilter('2026-06-30');
-                setSearchTerm('');
+                setAnalyticsSearchTerm('');
+                setExplorerSearchTerm('');
                 setSeverityFilter('all');
                 setRiskFilter('all');
                 setCurrentPage(1);
@@ -965,9 +1091,33 @@ export default function Home() {
                     TakaPay vs. NgoodPay (Competitive Comparison)
                     <span className="text-[10px] bg-indigo-500/10 text-indigo-400 px-2.5 py-0.5 rounded-full border border-indigo-500/10 font-bold uppercase">NgoodPay</span>
                   </h3>
-                  <p className="text-[10px] text-gray-400 mb-4">
-                    Visualizing strengths (TakaPay preferred) vs. weaknesses (NgoodPay preferred) by keyword mention frequency.
+                  <p className="text-[10px] text-gray-400 mb-2">
+                    Visualizing comparative brand satisfaction (% positive sentiment) for posts mentioning each category.
                   </p>
+                  
+                  {totalCompetitorMentions > 0 && (
+                    <div className="mb-4 p-2.5 rounded-xl border flex flex-col gap-1 text-[10px] bg-white/[0.01] border-white/5">
+                      <div className="flex justify-between items-center text-[11px]">
+                        <span className="text-gray-400 font-semibold">Comparative Advocacy Rate:</span>
+                        <div className="flex gap-2">
+                          <span className="text-indigo-400 font-bold">TakaPay: {takaPayFavorabilityRate}%</span>
+                          <span className="text-purple-400 font-bold">NgoodPay: {ngoodPayFavorabilityRate}%</span>
+                        </div>
+                      </div>
+                      
+                      {ngoodPayFavorabilityRate > takaPayFavorabilityRate ? (
+                        <div className="mt-1 flex items-center gap-1.5 text-rose-400 font-bold">
+                          <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse" />
+                          <span>⚠️ Alert: Competitor has higher brand satisfaction in comparisons!</span>
+                        </div>
+                      ) : (
+                        <div className="mt-1 flex items-center gap-1.5 text-emerald-400 font-bold">
+                          <Sparkles className="w-3 h-3 text-emerald-400" />
+                          <span>✓ Dominance: TakaPay maintains higher customer favorability!</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
@@ -1089,14 +1239,14 @@ export default function Home() {
           </div>
 
           {/* Filter bar */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
             <div className="relative flex items-center">
               <Search className="absolute left-3 w-4 h-4 text-gray-400 pointer-events-none" />
               <input 
                 type="text" 
                 placeholder="Search comments..." 
-                value={searchTerm}
-                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                value={explorerSearchTerm}
+                onChange={(e) => { setExplorerSearchTerm(e.target.value); setCurrentPage(1); }}
                 className="glass-input pl-9 pr-3 py-1.5 text-xs rounded-lg w-full focus:outline-none"
               />
             </div>
@@ -1109,6 +1259,21 @@ export default function Home() {
               <option value="positive">Positive</option>
               <option value="negative">Negative</option>
               <option value="neutral">Neutral</option>
+            </select>
+            <select 
+              value={topicFilter} 
+              onChange={(e) => { setTopicFilter(e.target.value); setCurrentPage(1); }}
+              className="glass-input px-3 py-1.5 text-xs rounded-lg text-gray-300 cursor-pointer focus:outline-none"
+            >
+              <option value="all">All Topics</option>
+              <option value="failed_transaction">Failed Transactions</option>
+              <option value="bill_payment">Bill Payments</option>
+              <option value="recharge">Mobile Recharges</option>
+              <option value="send_money">Send Money</option>
+              <option value="customer_care">Customer Care</option>
+              <option value="charges_fees">Charges & Fees</option>
+              <option value="agent_network">Agent Network</option>
+              <option value="off_topic">Off-Topic</option>
             </select>
             <select 
               value={severityFilter} 
@@ -1139,6 +1304,7 @@ export default function Home() {
                   <th className="p-3 text-center w-12">ID</th>
                   <th className="p-3">Feedback Message</th>
                   <th className="p-3 w-32 text-center whitespace-nowrap">Sentiment</th>
+                  <th className="p-3 w-28 text-center">Topic</th>
                   <th className="p-3 w-20 text-center">Severity</th>
                   <th className="p-3 w-20 text-center">Risk</th>
                 </tr>
@@ -1165,6 +1331,11 @@ export default function Home() {
                       </span>
                     </td>
                     <td className="p-3 text-center">
+                      <span className="px-2 py-0.5 rounded bg-white/5 border border-white/5 text-[10px] text-gray-400 font-mono">
+                        {r.topic ? r.topic.replace('_', ' ') : 'N/A'}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
                         r.severity_level === 'Urgent' ? 'bg-rose-950 text-rose-300 border border-rose-500/30' :
                         r.severity_level === 'High' ? 'bg-amber-950 text-amber-300 border border-amber-500/30' :
@@ -1185,7 +1356,7 @@ export default function Home() {
                 ))}
                 {currentItems.length === 0 && (
                   <tr>
-                    <td colSpan="5" className="p-8 text-center text-gray-500">
+                    <td colSpan="6" className="p-8 text-center text-gray-500">
                       No records match filters.
                     </td>
                   </tr>
@@ -1197,7 +1368,7 @@ export default function Home() {
           {/* Pagination Controls */}
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/5 text-xs text-gray-400">
-              <span>Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredRecords.length)} of {filteredRecords.length} entries</span>
+              <span>Showing {indexOfFirstItem + 1}-{Math.min(indexOfLastItem, filteredRecordsExplorer.length)} of {filteredRecordsExplorer.length} entries</span>
               <div className="flex gap-1">
                 <button 
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
