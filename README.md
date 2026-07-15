@@ -78,7 +78,7 @@ The Data Cleaner pipeline uses **Groq** to process, translate, and enrich the ra
     *   `Llama 3.3 70B Versatile` (Default and recommended for best balance of reasoning and efficiency).
     *   `GPT OSS 120B` (For deep multilingual code-switching nuances).
 *   **Rate Limits & Production Scaling:**
-    *   Since this demo uses Groq's **free tier**, the pipeline is designed to batch and pace requests to avoid rate limits during single-run analysis on the 660-row dataset. We can clean the data once with the free tier. 
+    *   Since this demo uses Groq's **free tier**, the pipeline is designed to batch and pace requests to avoid rate limits during single-run analysis on the 660-row dataset. The limitation is we can clean the data once with the free tier. 
     *   In a commercial production setting, using paid APIs or dedicated host instances would execute this pipeline near-instantly and accommodate unlimited recurring runs without limits.
 
 ---
